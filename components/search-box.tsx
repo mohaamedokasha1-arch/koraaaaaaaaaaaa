@@ -14,7 +14,7 @@ export function SearchBox({ locale, dict }: { locale: Locale; dict: Dictionary }
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const boxRef = useRef<HTMLDivElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {

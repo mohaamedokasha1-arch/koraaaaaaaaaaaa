@@ -18,11 +18,12 @@ function titleOf(m: UnifiedMatch, dict: ReturnType<typeof getDictionary>) {
 export async function generateMetadata({
   params,
 }: {
-  params: { locale: Locale; id: string };
+  params: Promise<{ locale: Locale; id: string }>;
 }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
+  const { locale, id } = await params;
+  const dict = getDictionary(locale);
   try {
-    const result = await getMatch(params.id);
+    const result = await getMatch(id);
     if (!result) return { title: dict.match.matchDetails };
     const m = result.data;
     const title = titleOf(m, dict);
@@ -102,9 +103,9 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 export default async function MatchPage({
   params,
 }: {
-  params: { locale: Locale; id: string };
+  params: Promise<{ locale: Locale; id: string }>;
 }) {
-  const { locale, id } = params;
+  const { locale, id } = await params;
   const dict = getDictionary(locale);
 
   let result = null;

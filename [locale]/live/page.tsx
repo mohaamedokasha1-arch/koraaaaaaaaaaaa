@@ -6,8 +6,9 @@ import { LiveMatches } from '@/components/live-matches';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { locale: Locale } }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
+export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const dict = getDictionary(locale);
   const title = dict.nav.live;
   return {
     title: `${title} - ${dict.site.name}`,
@@ -15,8 +16,8 @@ export async function generateMetadata({ params }: { params: { locale: Locale } 
   };
 }
 
-export default async function LivePage({ params }: { params: { locale: Locale } }) {
-  const { locale } = params;
+export default async function LivePage({ params }: { params: Promise<{ locale: Locale }> }) {
+  const { locale } = await params;
   const dict = getDictionary(locale);
 
   let initial = null;

@@ -11,16 +11,17 @@ import { ErrorState } from '@/components/empty-state';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { locale: Locale } }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
+export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const dict = getDictionary(locale);
   return {
     title: `${dict.site.name} - ${dict.site.tagline}`,
     description: dict.site.description,
   };
 }
 
-export default async function HomePage({ params }: { params: { locale: Locale } }) {
-  const { locale } = params;
+export default async function HomePage({ params }: { params: Promise<{ locale: Locale }> }) {
+  const { locale } = await params;
   const dict = getDictionary(locale);
 
   const [liveResult, todayResult] = await Promise.allSettled([

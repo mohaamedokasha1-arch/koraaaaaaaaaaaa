@@ -23,11 +23,12 @@ function isTab(v: string | undefined): v is Tab {
 export async function generateMetadata({
   params,
 }: {
-  params: { locale: Locale; id: string };
+  params: Promise<{ locale: Locale; id: string }>;
 }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
+  const { locale, id } = await params;
+  const dict = getDictionary(locale);
   try {
-    const result = await getTeam(params.id);
+    const result = await getTeam(id);
     if (!result) return { title: dict.common.team };
     const name = result.data.name;
     return {
@@ -62,12 +63,13 @@ export default async function TeamPage({
   params,
   searchParams,
 }: {
-  params: { locale: Locale; id: string };
-  searchParams: { tab?: string };
+  params: Promise<{ locale: Locale; id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const { locale, id } = params;
+  const { locale, id } = await params;
+  const { tab: tabParam } = await searchParams;
   const dict = getDictionary(locale);
-  const tab: Tab = isTab(searchParams.tab) ? searchParams.tab! : 'matches';
+  const tab: Tab = isTab(tabParam) ? tabParam : 'matches';
 
   let teamResult = null;
   let failed = false;

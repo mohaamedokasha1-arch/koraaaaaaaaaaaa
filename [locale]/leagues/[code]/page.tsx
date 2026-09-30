@@ -24,13 +24,14 @@ function isTab(v: string | undefined): v is Tab {
 export async function generateMetadata({
   params,
 }: {
-  params: { locale: Locale; code: string };
+  params: Promise<{ locale: Locale; code: string }>;
 }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
-  const featured = featuredByFdCode(params.code);
-  const name = params.locale === 'ar' ? featured?.nameAr ?? params.code : featured?.nameEn ?? params.code;
+  const { locale, code } = await params;
+  const dict = getDictionary(locale);
+  const featured = featuredByFdCode(code);
+  const name = locale === 'ar' ? featured?.nameAr ?? code : featured?.nameEn ?? code;
   return {
-    title: localeTitle(params.locale, name, dict),
+    title: localeTitle(locale, name, dict),
     description: `${name} - ${dict.standings.title}, ${dict.nav.live}, ${dict.leagues.fixtures} | ${dict.site.name}`,
   };
 }
@@ -43,15 +44,16 @@ export default async function LeagueDetailPage({
   params,
   searchParams,
 }: {
-  params: { locale: Locale; code: string };
-  searchParams: { tab?: string };
+  params: Promise<{ locale: Locale; code: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const { locale, code } = params;
+  const { locale, code } = await params;
+  const { tab: tabParam } = await searchParams;
   const dict = getDictionary(locale);
   const featured = featuredByFdCode(code);
   if (!featured) notFound();
 
-  const tab: Tab = isTab(searchParams.tab) ? searchParams.tab! : 'standings';
+  const tab: Tab = isTab(tabParam) ? tabParam : 'standings';
   const bundle = await getLeagueBundle(code);
   const leagueName = locale === 'ar' ? featured.nameAr : featured.nameEn;
 

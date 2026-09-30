@@ -1,7 +1,7 @@
 # KoraScore — كورة سكور
 
 Professional football live-scores platform. Arabic-first (RTL) with full English (LTR) support.
-Next.js 14 (App Router) · TypeScript · TailwindCSS · 100% real provider data — zero fake data.
+Next.js 16 (App Router) · React 19 · TypeScript · TailwindCSS · 100% real provider data — zero fake data.
 
 ## Quick start
 
@@ -60,7 +60,7 @@ The project deploys directly **GitHub → Vercel** with no extra services:
 
 ### Vercel compatibility contract (how the app is built)
 
-- **Framework:** Next.js 14 App Router — first-class Vercel support.
+- **Framework:** Next.js 16 App Router — first-class Vercel support.
 - **Rendering:** all data pages are `force-dynamic` → they run inside Vercel
   Serverless Functions (Node.js runtime) at request time. The build performs
   **zero live API calls**, so it succeeds even before env vars exist, and never

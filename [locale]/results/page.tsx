@@ -8,13 +8,14 @@ import { formatDayGroup } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { locale: Locale } }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
+export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const dict = getDictionary(locale);
   return { title: `${dict.nav.results} - ${dict.site.name}`, description: dict.site.description };
 }
 
-export default async function ResultsPage({ params }: { params: { locale: Locale } }) {
-  const { locale } = params;
+export default async function ResultsPage({ params }: { params: Promise<{ locale: Locale }> }) {
+  const { locale } = await params;
   const dict = getDictionary(locale);
 
   let result = null;
