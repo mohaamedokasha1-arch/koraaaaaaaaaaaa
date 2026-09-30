@@ -14,7 +14,8 @@
     "standings": "Standings",
     "topScorers": "Top Scorers",
     "teams": "Teams",
-    "search": "Search"
+    "search": "Search",
+    "news": "News"
   },
   "common": {
     "loading": "Loading…",
@@ -139,7 +140,12 @@
     "scorersTab": "Top scorers",
     "teamsTab": "Teams",
     "season": "Season",
-    "currentMatchday": "Current matchday"
+    "currentMatchday": "Current matchday",
+    "historyTab": "Past seasons",
+    "historyNote": "Historical seasons come from the open openfootball datasets (public domain).",
+    "matchdayLabel": "Matchday",
+    "seasonLabel": "Season",
+    "historyUnavailable": "No historical season data is available for this competition."
   },
   "search": {
     "placeholder": "Search teams or leagues…",
@@ -153,5 +159,40 @@
     "rights": "All rights reserved.",
     "sections": "Sections",
     "leagues": "Leagues"
+  },
+  "seo": {
+    "homeDesc": "Live football scores, today's fixtures and results, league tables, top scorers and football news from Egypt, Europe and leagues around the world.",
+    "liveTitle": "Live Football Scores Right Now",
+    "liveDesc": "Follow every match in play with live scores, match minute and events, refreshed automatically without reloading the page.",
+    "todayTitle": "Today's Football Matches - Fixtures & Results",
+    "todayDesc": "Today's football fixtures and results in your local time, across the Egyptian Premier League, Arab, European and global competitions.",
+    "resultsTitle": "Football Results",
+    "resultsDesc": "The latest football results with goals and cards, grouped by day and competition and kept up to date.",
+    "upcomingTitle": "Upcoming Football Fixtures",
+    "upcomingDesc": "Upcoming matches across leagues and competitions in your local time, browsable day by day.",
+    "leaguesTitle": "Leagues & Competitions",
+    "leaguesDesc": "Browse leagues and competitions — standings, fixtures, results, top scorers and teams, from the Egyptian Premier League to Europe's biggest leagues.",
+    "standingsTitle": "League Standings",
+    "standingsDesc": "Up-to-date league tables with points, goals, goal difference and recent form for every club.",
+    "scorersTitle": "Top Scorers",
+    "scorersDesc": "The season's leading scorers in each competition with goals, assists and appearances.",
+    "teamsTitle": "Football Teams - Squads & Fixtures",
+    "teamsDesc": "Team pages with the current squad, recent results, upcoming fixtures, league position and stadium details.",
+    "newsTitle": "Football News",
+    "newsDesc": "The latest football headlines from reputable publishers — headline, short excerpt and a clear credit to the original source.",
+    "leagueTitle": "{name} - Standings, Results & Fixtures",
+    "leagueDesc": "Everything about {name}: league table, fixtures, results, top scorers and teams, plus historical seasons.",
+    "teamTitle": "{name} - Fixtures, Squad & Standings",
+    "teamDesc": "{name}: recent results, upcoming fixtures, current squad and league position.",
+    "matchTitle": "{home} vs {away} - Score & Events",
+    "matchDesc": "{home} vs {away} in {league}: score, goals, cards, substitutions and kick-off time in your local timezone."
+  },
+  "news": {
+    "title": "Football News",
+    "subtitle": "The latest headlines from reputable publishers. We show the headline and a short excerpt with a link to the original article.",
+    "empty": "No headlines right now",
+    "emptyBody": "No news sources are configured, or they are unreachable at the moment.",
+    "readAtSource": "Read at {source}",
+    "note": "We publish the headline and a short excerpt only; all rights remain with the publisher, credited and linked."
   }
 }

@@ -3,17 +3,19 @@ import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { getLiveMatches } from '@/lib/football';
 import { LiveMatches } from '@/components/live-matches';
+import { pageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
   const { locale } = await params;
   const dict = getDictionary(locale);
-  const title = dict.nav.live;
-  return {
-    title: `${title} - ${dict.site.name}`,
-    description: dict.site.description,
-  };
+  return pageMetadata({
+    locale,
+    path: '/live',
+    title: dict.seo.liveTitle,
+    description: dict.seo.liveDesc,
+  });
 }
 
 export default async function LivePage({ params }: { params: Promise<{ locale: Locale }> }) {

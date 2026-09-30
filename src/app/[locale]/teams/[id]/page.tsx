@@ -10,6 +10,7 @@ import { StandingsTable } from '@/components/standings-table';
 import { EmptyState, ErrorState, StaleNotice } from '@/components/empty-state';
 import { num } from '@/lib/format';
 import type { SquadPlayer } from '@/lib/types';
+import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,14 +30,17 @@ export async function generateMetadata({
   const dict = getDictionary(locale);
   try {
     const result = await getTeam(id);
-    if (!result) return { title: dict.common.team };
+    if (!result) return pageMetadata({ locale, path: `/teams/${id}`, title: dict.common.team, description: dict.seo.teamsDesc, indexable: false });
     const name = result.data.name;
-    return {
-      title: `${name} - ${dict.teams.matches} & ${dict.teams.squad}`,
-      description: `${name} - ${dict.teams.matches}, ${dict.teams.squad}, ${dict.teams.info} | ${dict.site.name}`,
-    };
+    return pageMetadata({
+      locale,
+      path: `/teams/${id}`,
+      title: dict.seo.teamTitle.replace('{name}', name),
+      description: dict.seo.teamDesc.replace('{name}', name),
+    });
   } catch {
-    return { title: dict.common.team };
+    // Provider outage: never let a temporary failure publish an indexable stub.
+    return pageMetadata({ locale, path: `/teams/${id}`, title: dict.common.team, description: dict.seo.teamsDesc, indexable: false });
   }
 }
 
@@ -109,6 +113,22 @@ export default async function TeamPage({
 
   return (
     <div className="container-page py-6 sm:py-8 space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd(
+              [
+                { name: dict.nav.home, path: '/' },
+                { name: dict.nav.teams, path: '/teams' },
+                { name: team.name, path: `/teams/${id}` },
+              ],
+              locale,
+            ),
+          ),
+        }}
+      />
+
       <nav aria-label="breadcrumb" className="text-xs text-slate-500">
         <ol className="flex flex-wrap items-center gap-1.5">
           <li><Link href={`/${locale}`} className="hover:text-slate-300">{dict.nav.home}</Link></li>

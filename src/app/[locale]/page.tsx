@@ -9,26 +9,35 @@ import { MatchList } from '@/components/match-list';
 import { TeamLogo } from '@/components/team-logo';
 import { ErrorState } from '@/components/empty-state';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { pageMetadata } from '@/lib/seo';
+import { getNews, newsEnabled, newsSources } from '@/lib/news';
+import { NewsList, NewsAttribution } from '@/components/news-list';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
   const { locale } = await params;
   const dict = getDictionary(locale);
-  return {
-    title: `${dict.site.name} - ${dict.site.tagline}`,
-    description: dict.site.description,
-  };
+  return pageMetadata({
+    locale,
+    path: '/',
+    title: `${dict.site.name} — ${dict.site.tagline}`,
+    description: dict.seo.homeDesc,
+  });
 }
 
 export default async function HomePage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
   const dict = getDictionary(locale);
 
-  const [liveResult, todayResult] = await Promise.allSettled([
+  const [liveResult, todayResult, newsResult] = await Promise.allSettled([
     getLiveMatches(),
     getMatchesByDate(localToday()),
+    newsEnabled() ? getNews(6) : Promise.resolve(null),
   ]);
+  const news = newsResult.status === 'fulfilled' && newsResult.value && newsResult.value.data.length > 0
+    ? newsResult.value
+    : null;
 
   const live = liveResult.status === 'fulfilled' ? liveResult.value : null;
   const today = todayResult.status === 'fulfilled' ? todayResult.value : null;
@@ -143,6 +152,22 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           ))}
         </div>
       </section>
+
+      {/* News — rendered only when the operator configured licensed feeds */}
+      {news && (
+        <section aria-label={dict.nav.news}>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="section-title">{dict.news.title}</h2>
+            <Link href={`/${locale}/news`} className="link-accent text-sm font-medium">
+              {dict.common.viewAll} <span aria-hidden="true" className="inline-block rtl:-scale-x-100">←</span>
+            </Link>
+          </div>
+          <NewsList items={news.data} locale={locale} dict={dict} compact />
+          <div className="mt-3">
+            <NewsAttribution sources={newsSources()} locale={locale} />
+          </div>
+        </section>
+      )}
 
       {/* Quick nav */}
       <section aria-label={dict.home.quickNav}>

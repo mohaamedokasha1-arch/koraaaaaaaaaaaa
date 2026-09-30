@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getHealth } from '@/lib/circuit';
 import { cache } from '@/lib/cache';
+import { catalogSummary } from '@/lib/providers/catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export async function GET() {
       ok: up,
       now: new Date().toISOString(),
       cache: cache.stats(),
+      sources: catalogSummary(),
       providers: providers.map((p) => ({
         id: p.providerId,
         state: p.state,

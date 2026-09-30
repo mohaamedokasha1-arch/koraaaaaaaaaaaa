@@ -14,6 +14,7 @@ function items(locale: Locale, dict: Dictionary) {
     { href: `/${locale}/results`, label: dict.nav.results },
     { href: `/${locale}/upcoming`, label: dict.nav.upcoming },
     { href: `/${locale}/leagues`, label: dict.nav.leagues },
+    { href: `/${locale}/news`, label: dict.nav.news },
   ] as const;
 }
 
@@ -72,6 +73,7 @@ export function MobileNav({ locale, dict }: { locale: Locale; dict: Dictionary }
     { href: `/${locale}/standings`, label: dict.nav.standings },
     { href: `/${locale}/top-scorers`, label: dict.nav.topScorers },
     { href: `/${locale}/teams`, label: dict.nav.teams },
+    { href: `/${locale}/news`, label: dict.nav.news },
   ];
 
   return (
