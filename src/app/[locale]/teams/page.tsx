@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
+import { pageMetadata } from '@/lib/seo';
 import { getLeagueTeams } from '@/lib/football';
 import { leagueByCode } from '@/lib/constants';
 import { TeamLogo } from '@/components/team-logo';
@@ -13,7 +14,12 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
   const { locale } = await params;
   const dict = getDictionary(locale);
-  return { title: `${dict.teams.title} - ${dict.site.name}`, description: dict.site.description };
+  return pageMetadata({
+    locale,
+    path: '/teams',
+    title: dict.seo.teamsTitle,
+    description: dict.seo.teamsDesc,
+  });
 }
 
 export default async function TeamsPage({

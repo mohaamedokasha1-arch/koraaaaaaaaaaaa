@@ -159,3 +159,10 @@ export interface TeamSearchHit {
 }
 
 export type SearchHit = LeagueSearchHit | TeamSearchHit;
+
+/**
+ * A third-party news headline. We store only what we are allowed to republish:
+ * title, short excerpt, timestamp, source credit and the canonical link.
+ */
+export type { FeedItem as NewsItem } from './pure/rss';
+

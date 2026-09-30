@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
+import { pageMetadata } from '@/lib/seo';
 import { getScorers } from '@/lib/football';
 import { isFdCovered, leagueByCode } from '@/lib/constants';
 import { ScorersTable } from '@/components/scorers-table';
@@ -13,7 +14,12 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
   const { locale } = await params;
   const dict = getDictionary(locale);
-  return { title: `${dict.scorers.title} - ${dict.site.name}`, description: dict.site.description };
+  return pageMetadata({
+    locale,
+    path: '/top-scorers',
+    title: dict.seo.scorersTitle,
+    description: dict.seo.scorersDesc,
+  });
 }
 
 export default async function TopScorersPage({

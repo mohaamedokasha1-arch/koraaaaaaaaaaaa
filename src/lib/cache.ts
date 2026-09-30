@@ -23,6 +23,10 @@ export const CACHE_TTL = {
   TEAM_INFO: 86400,
   TEAM_SQUAD: 86400,
   SEARCH: 1800,
+  /** openfootball historical seasons — immutable public-domain datasets */
+  HISTORY: 86400,
+  /** RSS news headlines */
+  NEWS: 600,
 } as const;
 
 interface Entry<T> {

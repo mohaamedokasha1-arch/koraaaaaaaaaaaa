@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
+import { pageMetadata } from '@/lib/seo';
 import { getMatchesByDate, localToday } from '@/lib/football';
 import { MatchList } from '@/components/match-list';
 import { ErrorState, StaleNotice } from '@/components/empty-state';
@@ -13,7 +14,12 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
   const { locale } = await params;
   const dict = getDictionary(locale);
-  return { title: `${dict.nav.today} - ${dict.site.name}`, description: dict.site.description };
+  return pageMetadata({
+    locale,
+    path: '/today',
+    title: dict.seo.todayTitle,
+    description: dict.seo.todayDesc,
+  });
 }
 
 function Section({

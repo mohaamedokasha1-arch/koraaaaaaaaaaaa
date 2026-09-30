@@ -14,6 +14,7 @@ import type {
 import { CACHE_TTL, cache, getOrSet } from '@/lib/cache';
 import { ALL_LEAGUES, decodeEntityId, leagueByCode, leagueEntityId } from '@/lib/constants';
 import { getProviderById, withFallback, type Capability } from '@/lib/providers/registry';
+import { expandQuery, matchesQuery, normalizeText } from '@/lib/normalize';
 import type { FootballProvider } from '@/lib/providers/base';
 
 /**
@@ -346,15 +347,35 @@ export async function search(query: string): Promise<DataResult<SearchHit[]>> {
   const q = query.trim();
   if (q.length < 2) return { data: [], source: 'none', stale: false, fetchedAt: new Date().toISOString() };
 
-  const key = `search:${q.toLowerCase()}`;
+  // Normalised cache key: "الأهلى" and "الأهلي" share one provider call.
+  const key = `search:${normalizeText(q)}`;
   return cachedCall<SearchHit[]>(key, CACHE_TTL.SEARCH, 'searchTeams', async (p) => {
-    const teams = await p.searchTeams(q);
+    // Arabic aliases expand to the Latin names providers index (الأهلي → Al Ahly),
+    // and every provider hit is checked against the user's own spelling so a
+    // fuzzy upstream match can never push an unrelated club to the top.
+    const queries = expandQuery(q);
+    const settled = await Promise.allSettled(queries.slice(0, 3).map((qq) => p.searchTeams(qq)));
+    const seen = new Set<string>();
+    const collected: UnifiedTeam[] = [];
+    for (const r of settled) {
+      if (r.status !== 'fulfilled') continue;
+      for (const t of r.value) {
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        collected.push(t);
+      }
+    }
+    const relevant = collected.filter((t) => matchesQuery(t.name, q));
+    // Never return nothing because our relevance filter was stricter than the
+    // provider's own matching — fall back to the upstream ordering.
+    const teams = (relevant.length > 0 ? relevant : collected).slice(0, 12);
+
     const leagueHits: LeagueSearchHit[] = ALL_LEAGUES.filter(
       (l) =>
-        l.nameEn.toLowerCase().includes(q.toLowerCase()) ||
-        l.nameAr.includes(q) ||
-        l.country.toLowerCase().includes(q.toLowerCase()) ||
-        l.countryAr.includes(q),
+        matchesQuery(l.nameEn, q) ||
+        matchesQuery(l.nameAr, q) ||
+        matchesQuery(l.country, q) ||
+        matchesQuery(l.countryAr, q),
     ).map((l) => ({
       kind: 'league',
       id: leagueEntityId(l),

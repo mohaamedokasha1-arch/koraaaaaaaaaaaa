@@ -5,8 +5,13 @@ import { getDictionary } from '@/i18n/dictionaries';
 import { isLocale, localeDir, type Locale } from '@/i18n/locales';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
+import { siteJsonLd } from '@/lib/seo';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+
+/** NOTE: no canonical/hreflang here on purpose — every page declares its own
+ *  absolute, self-referencing canonical via src/lib/seo.ts. A layout-level
+ *  canonical would make every sub-page claim to be the locale home. */
 
 // locales render dynamically (see force-dynamic in the pages) — both
 // 'ar' and 'en' resolve at request time via dynamicParams (default true).
@@ -26,16 +31,11 @@ export async function generateMetadata({
       template: `%s | ${dict.site.name}`,
     },
     description: dict.site.description,
-    alternates: {
-      canonical: `/${locale}`,
-      languages: { ar: '/ar', en: '/en' },
-    },
     openGraph: {
       type: 'website',
       siteName: 'KoraScore',
       title: `${dict.site.name} - ${dict.site.tagline}`,
       description: dict.site.description,
-      url: `${SITE_URL}/${locale}`,
       locale: locale === 'ar' ? 'ar_EG' : 'en_GB',
     },
     twitter: {
@@ -68,6 +68,10 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} dir={dir} className="dark" data-scroll-behavior="smooth">
       <body className="flex min-h-screen flex-col bg-navy-950 text-slate-100">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd(locale, dict.site.name)) }}
+        />
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-navy-600 focus:px-4 focus:py-2 focus:text-white"

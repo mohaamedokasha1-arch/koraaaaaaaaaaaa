@@ -9,6 +9,7 @@ import { TeamLogo } from '@/components/team-logo';
 import { ErrorState, StaleNotice } from '@/components/empty-state';
 import { formatFullDate, minuteLabel, num } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { breadcrumbJsonLd, clip, pageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,16 +26,27 @@ export async function generateMetadata({
   const dict = getDictionary(locale);
   try {
     const result = await getMatch(id);
-    if (!result) return { title: dict.match.matchDetails };
+    if (!result) {
+      return pageMetadata({ locale, path: `/matches/${id}`, title: dict.match.matchDetails, description: dict.site.description, indexable: false });
+    }
     const m = result.data;
     const title = titleOf(m, dict);
-    return {
-      title: `${title} - ${dict.match.matchDetails}`,
-      description: `${title} | ${m.league.name} - ${dict.site.name}`,
-      openGraph: { title: `${title} - ${dict.match.matchDetails}` },
-    };
+    const description = clip(
+      dict.seo.matchDesc
+        .replace('{home}', m.home.name)
+        .replace('{away}', m.away.name)
+        .replace('{league}', m.league.name),
+    );
+    return pageMetadata({
+      locale,
+      path: `/matches/${id}`,
+      title: dict.seo.matchTitle.replace('{home}', m.home.name).replace('{away}', m.away.name),
+      description,
+      type: 'article',
+    });
   } catch {
-    return { title: dict.match.matchDetails };
+    // Transient provider failure — the page must not be indexed as a stub.
+    return pageMetadata({ locale, path: `/matches/${id}`, title: dict.match.matchDetails, description: dict.site.description, indexable: false });
   }
 }
 
@@ -148,23 +160,52 @@ export default async function MatchPage({
               ? dict.match.statusCancelled
               : dict.match.statusScheduled;
 
+  // Structured data mirrors exactly what is rendered on the page: the teams,
+  // the competition, the kickoff and — only for finished matches — the score.
+  const eventStatus =
+    m.status === 'postponed'
+      ? 'https://schema.org/EventPostponed'
+      : m.status === 'cancelled'
+        ? 'https://schema.org/EventCancelled'
+        : 'https://schema.org/EventScheduled';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
     name: title,
+    description:
+      m.status === 'finished' && m.score.home != null && m.score.away != null
+        ? `${title} ${m.score.home}-${m.score.away}`
+        : undefined,
     startDate: m.utcDate,
+    eventStatus,
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     url: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/${locale}/matches/${m.id}`,
-    homeTeam: { '@type': 'SportsTeam', name: m.home.name },
-    awayTeam: { '@type': 'SportsTeam', name: m.away.name },
+    homeTeam: { '@type': 'SportsTeam', name: m.home.name, logo: m.home.crest ?? undefined },
+    awayTeam: { '@type': 'SportsTeam', name: m.away.name, logo: m.away.crest ?? undefined },
+    competitor: [
+      { '@type': 'SportsTeam', name: m.home.name },
+      { '@type': 'SportsTeam', name: m.away.name },
+    ],
     sport: 'Soccer',
     location: m.venue ? { '@type': 'Place', name: m.venue } : undefined,
     organizer: { '@type': 'SportsOrganization', name: m.league.name },
   };
+  const breadcrumbs = breadcrumbJsonLd(
+    [
+      { name: dict.nav.home, path: '/' },
+      ...(m.league.code
+        ? [{ name: m.league.name, path: `/leagues/${m.league.code}` }]
+        : [{ name: dict.leagues.title, path: '/leagues' }]),
+      { name: title, path: `/matches/${m.id}` },
+    ],
+    locale,
+  );
 
   return (
     <div className="container-page py-6 sm:py-8 space-y-6">
       {shouldRefreshMatch && <AutoRefresh intervalMs={60_000} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
 
       <nav aria-label="breadcrumb" className="text-xs text-slate-500">
         <ol className="flex flex-wrap items-center gap-1.5">
@@ -254,6 +295,20 @@ export default async function MatchPage({
               </Link>
             </div>
           </div>
+
+          {/* Freshness indicator: honest about when this snapshot was fetched. */}
+          <p className="mt-5 text-center text-[11px] text-slate-500">
+            {dict.common.lastUpdated}:{' '}
+            <time dateTime={result.fetchedAt} className="tabular-nums">
+              {new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE ?? 'Africa/Cairo',
+              }).format(new Date(result.fetchedAt))}
+            </time>
+            {result.source !== 'cache' && result.source !== 'none' ? ` · ${result.source}` : ''}
+            {result.stale ? ` · ${dict.common.cachedNotice}` : ''}
+          </p>
         </div>
       </header>
 

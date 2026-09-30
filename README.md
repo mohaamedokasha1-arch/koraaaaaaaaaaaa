@@ -27,6 +27,11 @@ Open **http://localhost:3000** → redirects to `/ar` (or your last chosen local
 | `PROVIDER_TIMEOUT_MS`, `PROVIDER_MAX_RETRIES` | optional | HTTP behaviour (defaults 8000 / 1) |
 | `CIRCUIT_BREAKER_THRESHOLD`, `CIRCUIT_BREAKER_COOLDOWN_MS` | optional | resilience tuning (5 / 300000) |
 | `NEXT_PUBLIC_SITE_URL` | ✅ prod | SEO canonical/OG/sitemap base URL |
+| `OPENFOOTBALL_ENABLED` | optional | `false` disables the openfootball historical dataset (CC0) |
+| `OPENFOOTBALL_TIMEOUT_MS` | optional | Historical dataset download timeout (default 10000) |
+| `NEWS_FEEDS` | optional | Opt-in news feeds, `Label\|https://feed-url,...`. Empty = feature off (no request is made, `/news` stays noindex) |
+| `NEWS_TIMEOUT_MS` | optional | Per-feed timeout (default 8000) |
+| `PROVIDER_TEXT_TIMEOUT_MS`, `PROVIDER_MAX_TEXT_BYTES` | optional | Guards for text/XML downloads (defaults 12000 / 4000000) |
 | `NEXT_PUBLIC_DEFAULT_TIMEZONE` | optional | kickoff display timezone (default `Africa/Cairo`) |
 
 **Never commit real keys.** `.env` / `.env.local` are git-ignored; `.env.example` holds placeholders only.
@@ -116,6 +121,8 @@ request → fresh cache?  →  provider A → provider B → provider C
 | Top scorers / leagues | football-data (→ api-football* for mapped competitions) |
 | Team profile / team fixtures | football-data → TheSportsDB |
 | Full-text team search | TheSportsDB |
+| Historical seasons (per league) | openfootball (open dataset, not part of the live waterfall) |
+| News headlines | licensed RSS feeds — opt-in via `NEWS_FEEDS` |
 
 \* auto-disabled until `API_FOOTBALL_KEY` is set. TheSportsDB closes the chain for
 competitions football-data does **not** cover (see the Egyptian Premier League
@@ -129,7 +136,8 @@ unchanged.
 ## Caching (tiered TTLs, per-instance, Vercel-friendly)
 
 live 25s · match detail 60s · today 5m · results 10m · upcoming 15m ·
-league matches 15m · standings & scorers 1h · leagues/teams/squad 24h · search 30m
+league matches 15m · standings & scorers 1h · leagues/teams/squad 24h · search 30m ·
+historical seasons 24h (immutable files) · news 10m
 
 Every payload is retained up to 24h past expiry as **stale** fallback for outage windows;
 the UI shows an amber "showing last saved version" notice when serving it. `fetchedAt`
@@ -140,8 +148,9 @@ cron-warmed data between serverless instances.
 
 ## Routes
 
-`/ar` & `/en` for: home · live · today · results · upcoming ·
-leagues + `/leagues/[code]` (standings / fixtures / results / scorers / teams tabs;
+`/ar` & `/en` for: home · live · today · results · upcoming · news ·
+leagues + `/leagues/[code]` (standings / fixtures / results / scorers / teams tabs,
+plus a **past-seasons** tab for competitions covered by the openfootball datasets;
 codes are the football-data codes plus `EGY` for the Egyptian Premier League) ·
 standings · top-scorers · teams + `/teams/[id]` (matches / squad / standings / info) ·
 matches/[id] (score header, events timeline, details, JSON-LD `SportsEvent`).
@@ -185,6 +194,36 @@ semantic breadcrumbs. All cross-links flow through entity pages.
   (Patreon supporter key) raises every one of those ceilings automatically —
   no code change.
 
+## Data sources added on top of the existing ones
+
+Nothing that already worked was replaced. Two sources were added, and only one of
+them runs automatically:
+
+1. **openfootball (CC0 / public domain)** — completed seasons for the major
+   European leagues **and the Egyptian Premier League** (2023-24, 2024-25).
+   It powers the league page's *past seasons* tab and is deliberately kept out of
+   the live waterfall, so it can never slow down or shadow a live provider.
+   Verified licence: “dedicated to the public domain. Use as you please with no
+   restrictions whatsoever.”
+2. **Licensed news feeds (RSS/Atom)** — opt-in via `NEWS_FEEDS`. The app stores a
+   headline, a short excerpt, the timestamp, the source credit and a link; it never
+   republishes the article. Without the env var the feature is completely inert.
+   Per-source terms (e.g. BBC Sport RSS requires a visible credit) are documented
+   in `docs/SOURCE-EVALUATION.md`.
+
+Candidates that were checked but **not** integrated, and why, are listed in the
+same document (e.g. OpenLigaDB works but its licence text could not be verified;
+Sportmonks' free tier covers only two leagues; several APIs publish no verifiable
+public-display terms).
+
+## Documentation
+
+| File | Contents |
+|---|---|
+| `docs/AUDIT.md` | Phase 0 read-only audit + baseline (stack, routes, providers, coverage matrix, SEO state, risks) |
+| `docs/SOURCE-EVALUATION.md` | Every candidate source checked, with licence, quota, coverage and accept/reject reason |
+| `docs/INDEXING-AUDIT.md` | Crawl/indexing audit: page-type inventory, robots/sitemap/canonical before vs after, thin-content rules, what could not be verified |
+
 ## Deliberate scope decisions (vs. the master brief)
 
 1. **No database** — per the "zero-cost, serverless-ready" directive: persistence is the
@@ -202,7 +241,11 @@ npm run dev        # develop
 npm run build      # production build
 npm start          # production server
 npm run typecheck  # tsc --noEmit
+npm test           # node:test unit tests for the pure parsers/normalisers
 ```
+
+> There is no `lint` script in this repository (no ESLint configured) — the quality
+> gates are `typecheck`, `build`, `test` and the crawl checks documented in `docs/`.
 
 ## Production checklist
 

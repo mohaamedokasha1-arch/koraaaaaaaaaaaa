@@ -12,10 +12,21 @@ import { MatchList } from '@/components/match-list';
 import { EmptyState, StaleNotice } from '@/components/empty-state';
 import { num } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
+import {
+  groupByMatchday,
+  getHistoricalSeason,
+  hasHistory,
+  historySeasons,
+  HISTORY_ATTRIBUTION,
+} from '@/lib/historical';
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['standings', 'fixtures', 'results', 'scorers', 'teams'] as const;
+const TABS = ['standings', 'fixtures', 'results', 'scorers', 'teams', 'history'] as const;
+
+/** How many matchdays of a historical season we render inline (keeps HTML light). */
+const HISTORY_MATCHDAYS_SHOWN = 8;
 type Tab = (typeof TABS)[number];
 
 function isTab(v: string | undefined): v is Tab {
@@ -31,14 +42,14 @@ export async function generateMetadata({
   const dict = getDictionary(locale);
   const featured = leagueByCode(code);
   const name = locale === 'ar' ? featured?.nameAr ?? code : featured?.nameEn ?? code;
-  return {
-    title: localeTitle(locale, name, dict),
-    description: `${name} - ${dict.standings.title}, ${dict.nav.live}, ${dict.leagues.fixtures} | ${dict.site.name}`,
-  };
-}
-
-function localeTitle(locale: Locale, name: string, dict: ReturnType<typeof getDictionary>) {
-  return locale === 'ar' ? `${name} - الترتيب والنتائج والمواعيد` : `${name} - Scores, Standings & Fixtures`;
+  // Tab and filter variants (?tab=, ?season=) intentionally canonicalise to the
+  // league page itself, so the same content is never indexed twice.
+  return pageMetadata({
+    locale,
+    path: `/leagues/${code}`,
+    title: dict.seo.leagueTitle.replace('{name}', name),
+    description: dict.seo.leagueDesc.replace('{name}', name),
+  });
 }
 
 export default async function LeagueDetailPage({
@@ -46,15 +57,21 @@ export default async function LeagueDetailPage({
   searchParams,
 }: {
   params: Promise<{ locale: Locale; code: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; season?: string }>;
 }) {
   const { locale, code } = await params;
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, season: seasonParam } = await searchParams;
   const dict = getDictionary(locale);
   const featured = leagueByCode(code);
   if (!featured) notFound();
 
-  const tab: Tab = isTab(tabParam) ? tabParam : 'standings';
+  // The history tab only exists for competitions with a verified open dataset,
+  // so the tab is never rendered (and never linked) otherwise.
+  const seasons = historySeasons(code);
+  const historyAvailable = hasHistory(code) && seasons.length > 0;
+  const tab: Tab = isTab(tabParam) && (tabParam !== 'history' || historyAvailable) ? tabParam : 'standings';
+  const selectedSeason = seasons.includes(seasonParam ?? '') ? seasonParam! : seasons[0] ?? null;
+
   const bundle = await getLeagueBundle(code);
   const leagueName = locale === 'ar' ? featured.nameAr : featured.nameEn;
 
@@ -79,13 +96,35 @@ export default async function LeagueDetailPage({
     results: dict.leagues.resultsTab,
     scorers: dict.leagues.scorersTab,
     teams: dict.leagues.teamsTab,
+    history: dict.leagues.historyTab,
   };
 
-  const stale = standings?.stale || matches?.stale || scorers?.stale;
+  const history =
+    tab === 'history' && historyAvailable && selectedSeason
+      ? await getHistoricalSeason(code, selectedSeason)
+      : null;
+  const historyMatchdays = history ? groupByMatchday(history.data).slice(0, HISTORY_MATCHDAYS_SHOWN) : [];
+
+  const stale = standings?.stale || matches?.stale || scorers?.stale || history?.stale;
 
   return (
     <div className="container-page py-6 sm:py-8">
       {(tab === 'fixtures' || tab === 'results') && <AutoRefresh intervalMs={900_000} />}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd(
+              [
+                { name: dict.nav.home, path: '/' },
+                { name: dict.leagues.title, path: '/leagues' },
+                { name: leagueName, path: `/leagues/${code}` },
+              ],
+              locale,
+            ),
+          ),
+        }}
+      />
       <nav aria-label="breadcrumb" className="mb-4 text-xs text-slate-500">
         <ol className="flex items-center gap-1.5">
           <li><Link href={`/${locale}`} className="hover:text-slate-300">{dict.nav.home}</Link></li>
@@ -112,7 +151,7 @@ export default async function LeagueDetailPage({
       {stale && <div className="mt-4"><StaleNotice message={dict.common.cachedNotice} /></div>}
 
       <div className="mt-5 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label={leagueName}>
-        {TABS.map((t) => (
+        {TABS.filter((t) => t !== 'history' || historyAvailable).map((t) => (
           <Link
             key={t}
             href={`/${locale}/leagues/${code}?tab=${t}`}
@@ -153,6 +192,63 @@ export default async function LeagueDetailPage({
           ) : (
             <EmptyState title={dict.common.noData} body={dict.common.dataUnavailable} />
           ))}
+
+        {tab === 'history' && historyAvailable && selectedSeason && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-1.5" aria-label={dict.leagues.seasonLabel}>
+              {seasons.map((season) => (
+                <Link
+                  key={season}
+                  href={`/${locale}/leagues/${code}?tab=history&season=${season}`}
+                  className={`tab-btn shrink-0 tabular-nums ${season === selectedSeason ? 'tab-btn-active' : ''}`}
+                  aria-current={season === selectedSeason ? 'true' : undefined}
+                >
+                  {season}
+                </Link>
+              ))}
+            </div>
+
+            {historyMatchdays.length === 0 ? (
+              <EmptyState title={dict.common.noData} body={dict.leagues.historyUnavailable} />
+            ) : (
+              <div className="space-y-3">
+                {historyMatchdays.map((group) => (
+                  <section key={group.matchday ?? 'other'} className="card overflow-hidden">
+                    <h2 className="border-b border-navy-700/60 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                      {dict.leagues.matchdayLabel} {group.matchday != null ? num(group.matchday, locale) : ''}
+                    </h2>
+                    <ol className="divide-y divide-navy-800/60">
+                      {group.matches.map((m) => (
+                        <li key={m.id} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-2 text-sm">
+                          <span className="truncate text-end text-slate-200">{m.home.name}</span>
+                          <span className="score-pill text-sm">
+                            <span>{m.score.home ?? '–'}</span>
+                            <span className="text-slate-500">-</span>
+                            <span>{m.score.away ?? '–'}</span>
+                          </span>
+                          <span className="truncate text-start text-slate-200">{m.away.name}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-slate-500">
+              {dict.leagues.historyNote}{' '}
+              <a
+                href={HISTORY_ATTRIBUTION.url}
+                target="_blank"
+                rel="noopener noreferrer external"
+                className="link-accent font-semibold"
+              >
+                {HISTORY_ATTRIBUTION.name}
+              </a>{' '}
+              ({HISTORY_ATTRIBUTION.licence})
+            </p>
+          </div>
+        )}
 
         {tab === 'teams' &&
           (standings && standings.data.length > 0 ? (
