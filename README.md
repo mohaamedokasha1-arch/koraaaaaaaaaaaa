@@ -92,12 +92,17 @@ request → fresh cache?  →  provider A → provider B → provider C
 |---|---|
 | Live matches | football-data → api-football* → ESPN → TheSportsDB |
 | Matches by date | football-data → api-football* → ESPN → TheSportsDB |
-| Standings / league matches | football-data → api-football* |
-| Top scorers / league teams / leagues | football-data |
+| Standings | football-data → api-football* → TheSportsDB |
+| League matches | football-data → api-football* → TheSportsDB |
+| League teams | football-data → api-football* → TheSportsDB |
+| Top scorers / leagues | football-data (→ api-football* for mapped competitions) |
 | Team profile / team fixtures | football-data → TheSportsDB |
 | Full-text team search | TheSportsDB |
 
-\* auto-disabled until `API_FOOTBALL_KEY` is set.
+\* auto-disabled until `API_FOOTBALL_KEY` is set. TheSportsDB closes the chain for
+competitions football-data does **not** cover (see the Egyptian Premier League
+below) — it declines featured competitions as `unsupported`, so their chain is
+unchanged.
 
 - **Circuit breaker:** 5 consecutive failures → circuit opens for 5 min (half-open probe after cooldown). Plan-limitation errors (403 "TIER_ONE") and unsupported capabilities do **not** poison the circuit.
 - **Rate pacing:** token bucket keeps football-data within its 10 req/min free-plan budget.
@@ -115,7 +120,8 @@ Swap `src/lib/cache.ts` for Redis/Vercel KV to share cache across regions.
 ## Routes
 
 `/ar` & `/en` for: home · live · today · results · upcoming ·
-leagues + `/leagues/[code]` (standings / fixtures / results / scorers / teams tabs) ·
+leagues + `/leagues/[code]` (standings / fixtures / results / scorers / teams tabs;
+codes are the football-data codes plus `EGY` for the Egyptian Premier League) ·
 standings · top-scorers · teams + `/teams/[id]` (matches / squad / standings / info) ·
 matches/[id] (score header, events timeline, details, JSON-LD `SportsEvent`).
 
@@ -141,6 +147,21 @@ semantic breadcrumbs. All cross-links flow through entity pages.
   data at source) — the timeline then honestly shows "no events recorded".
 - Free plan covers 12 competitions; the app tracks the 10 with full data:
   PL, PD, SA, BL1, FL1, CL, DED, PPL, BSA, ELC.
+- **Egyptian Premier League (الدوري المصري الممتاز)** — `/ar/leagues/EGY` &
+  `/en/leagues/EGY`. It is not on football-data's free plan, so the league is
+  registered in `EXTRA_LEAGUES` (same model + same pipeline + same components)
+  and served by **TheSportsDB league 4829**: `lookuptable.php` (table),
+  `eventsseason.php` + `eventspastleague.php` + `eventsnextleague.php`
+  (fixtures/results, de-duplicated by event id) and `search_all_teams.php`
+  (clubs). Zone colours come from the provider's own description text.
+  With `API_FOOTBALL_KEY` set, api-football league **233** is tried first and
+  returns the complete set (table, fixtures, clubs, top scorers).
+  The public key's documented per-endpoint caps apply and are surfaced
+  honestly — never padded: season schedule 15 events (3000 with a key), table
+  5 rows in the live free response (full table with a key), club list 10
+  (3000 with a key), 1 recent + 1 next match. Setting `THESPORTSDB_API_KEY`
+  (Patreon supporter key) raises every one of those ceilings automatically —
+  no code change.
 
 ## Deliberate scope decisions (vs. the master brief)
 

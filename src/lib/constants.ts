@@ -4,12 +4,17 @@
  */
 
 export interface FeaturedLeague {
-  /** football-data.org code */
+  /** Route code — the football-data.org code for competitions it covers,
+   *  otherwise the canonical provider-native key (e.g. EGY). */
   fdCode: string;
   /** TheSportsDB league id */
   tsdbId: string;
-  /** ESPN slug e.g. eng.1 */
+  /** ESPN slug e.g. eng.1 ('' when ESPN has no scoreboard for the league) */
   espnSlug: string;
+  /** api-football numeric league id (fallback provider), when known */
+  afLeagueId?: string;
+  /** TheSportsDB league name, used by name-scoped endpoints (teams list) */
+  tsdbName?: string;
   nameEn: string;
   nameAr: string;
   country: string;
@@ -80,16 +85,61 @@ export const FEATURED_LEAGUES: FeaturedLeague[] = [
   },
 ];
 
+/**
+ * Competitions that are not on football-data.org's free plan, so they are
+ * served by the other adapters (TheSportsDB → api-football). They use the exact
+ * same model, routes, components and provider pipeline as the featured list —
+ * only the data source differs.
+ */
+export const EXTRA_LEAGUES: FeaturedLeague[] = [
+  {
+    // Egyptian Premier League (الدوري المصري الممتاز) — TheSportsDB league 4829,
+    // api-football league 233. Not covered by football-data.org's free tier.
+    fdCode: 'EGY',
+    tsdbId: '4829',
+    espnSlug: '',
+    afLeagueId: '233',
+    tsdbName: 'Egyptian Premier League',
+    nameEn: 'Egyptian Premier League',
+    nameAr: 'الدوري المصري الممتاز',
+    country: 'Egypt',
+    countryAr: 'مصر',
+    emblem: 'https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png',
+  },
+];
+
+/** Every league the UI may navigate to (featured + provider-native extras). */
+export const ALL_LEAGUES: FeaturedLeague[] = [...FEATURED_LEAGUES, ...EXTRA_LEAGUES];
+
+/** True when football-data.org serves this competition (its code is an fd code). */
+export function isFdCovered(code: string): boolean {
+  return FEATURED_LEAGUES.some((l) => l.fdCode === code);
+}
+
 export function featuredByFdCode(code: string): FeaturedLeague | undefined {
   return FEATURED_LEAGUES.find((l) => l.fdCode === code);
 }
 
 export function featuredByTsdbId(id: string): FeaturedLeague | undefined {
-  return FEATURED_LEAGUES.find((l) => l.tsdbId === id);
+  if (!id) return undefined;
+  return ALL_LEAGUES.find((l) => l.tsdbId === id) ?? undefined;
 }
 
 export function featuredByEspnSlug(slug: string): FeaturedLeague | undefined {
+  if (!slug) return undefined;
   return FEATURED_LEAGUES.find((l) => l.espnSlug === slug);
+}
+
+/** Any known league (featured or extra) by its route code. */
+export function leagueByCode(code: string | null | undefined): FeaturedLeague | undefined {
+  if (!code) return undefined;
+  return ALL_LEAGUES.find((l) => l.fdCode === code);
+}
+
+/** Route-safe canonical id of a league entity: fd ids for fd competitions,
+ *  provider-native ids for the extra ones. */
+export function leagueEntityId(league: FeaturedLeague): string {
+  return isFdCovered(league.fdCode) ? `fd~${league.fdCode}` : `tsdb~${league.tsdbId}`;
 }
 
 /** Provider-scoped ids: "fd~123", "tsdb~456", "espn~eng.1~789" */

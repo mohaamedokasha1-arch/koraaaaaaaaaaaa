@@ -1,12 +1,12 @@
 import type { MetadataRoute } from 'next';
-import { FEATURED_LEAGUES } from '@/lib/constants';
+import { ALL_LEAGUES } from '@/lib/constants';
 import { locales } from '@/i18n/locales';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPaths = ['', '/live', '/today', '/results', '/upcoming', '/leagues', '/standings', '/top-scorers', '/teams'];
-  const leaguePaths = FEATURED_LEAGUES.map((l) => `/leagues/${l.fdCode}`);
+  const leaguePaths = ALL_LEAGUES.map((l) => `/leagues/${l.fdCode}`);
 
   const entries: MetadataRoute.Sitemap = [];
   for (const locale of locales) {

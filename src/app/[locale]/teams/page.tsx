@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { getLeagueTeams } from '@/lib/football';
-import { featuredByFdCode, FEATURED_LEAGUES } from '@/lib/constants';
+import { leagueByCode } from '@/lib/constants';
 import { TeamLogo } from '@/components/team-logo';
 import { LeagueSelect } from '@/components/league-select';
 import { EmptyState, ErrorState } from '@/components/empty-state';
@@ -26,10 +26,8 @@ export default async function TeamsPage({
   const { locale } = await params;
   const { league } = await searchParams;
   const dict = getDictionary(locale);
-  const code = FEATURED_LEAGUES.some((l) => l.fdCode === league)
-    ? league!
-    : 'PL';
-  const featured = featuredByFdCode(code)!;
+  const code = leagueByCode(league) ? league! : 'PL';
+  const featured = leagueByCode(code)!;
   const leagueName = locale === 'ar' ? featured.nameAr : featured.nameEn;
 
   let result = null;
@@ -51,11 +49,12 @@ export default async function TeamsPage({
       </nav>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold text-white">
-          {dict.teams.title} <span className="text-slate-400">— {leagueName}</span>
+        <h1 className="text-2xl font-extrabold tracking-tight text-white">
+          {dict.teams.title} <span className="font-bold text-slate-400">— {leagueName}</span>
         </h1>
         <LeagueSelect locale={locale} current={code} basePath="/teams" label={dict.standings.selectLeague} />
       </div>
+      <div aria-hidden="true" className="hairline-gold mt-4 w-24" />
 
       <div className="mt-6">
         {failed && <ErrorState title={dict.common.errorTitle} body={dict.common.errorBody} />}
@@ -68,11 +67,13 @@ export default async function TeamsPage({
               <Link
                 key={t.id}
                 href={`/${locale}/teams/${t.id}`}
-                className="card card-hover flex flex-col items-center gap-2 px-4 py-5 text-center"
+                className="card card-hover group flex flex-col items-center gap-3 px-4 py-5 text-center"
               >
-                <TeamLogo src={t.crest} alt={t.name} size={44} />
+                <span className="crest-tile h-14 w-14 transition-colors group-hover:ring-navy-500">
+                  <TeamLogo src={t.crest} alt={t.name} size={38} />
+                </span>
                 <span className="text-sm font-semibold text-white leading-tight">{t.name}</span>
-                {t.country && <span className="text-xs text-slate-500">{t.country}</span>}
+                {t.country && <span className="text-[11px] uppercase tracking-wide text-slate-500">{t.country}</span>}
               </Link>
             ))}
           </div>

@@ -12,7 +12,7 @@ import type {
   UnifiedTeam,
 } from '@/lib/types';
 import { CACHE_TTL, cache, getOrSet } from '@/lib/cache';
-import { decodeEntityId, FEATURED_LEAGUES } from '@/lib/constants';
+import { ALL_LEAGUES, decodeEntityId, leagueByCode, leagueEntityId } from '@/lib/constants';
 import { getProviderById, withFallback, type Capability } from '@/lib/providers/registry';
 import type { FootballProvider } from '@/lib/providers/base';
 
@@ -245,9 +245,9 @@ export async function getLeagues(): Promise<DataResult<UnifiedLeague[]>> {
   try {
     return await cachedCall<UnifiedLeague[]>('leagues', CACHE_TTL.LEAGUES, 'leagues', (p) => p.getLeagues());
   } catch {
-    // zero dependency fallback: the curated featured list (real, stable data)
-    const data: UnifiedLeague[] = FEATURED_LEAGUES.map((l) => ({
-      id: `fd~${l.fdCode}`,
+    // zero dependency fallback: the curated list (real, stable data)
+    const data: UnifiedLeague[] = ALL_LEAGUES.map((l) => ({
+      id: leagueEntityId(l),
       code: l.fdCode,
       name: l.nameEn,
       emblem: l.emblem,
@@ -264,9 +264,9 @@ export async function getLeagueBundle(code: string): Promise<{
   scorers: DataResult<Scorer[]> | null;
   matches: DataResult<UnifiedMatch[]> | null;
 }> {
-  const featured = FEATURED_LEAGUES.find((l) => l.fdCode === code);
+  const featured = leagueByCode(code);
   const league: UnifiedLeague | null = featured
-    ? { id: `fd~${code}`, code, name: featured.nameEn, emblem: featured.emblem, country: featured.country, currentSeason: null }
+    ? { id: leagueEntityId(featured), code, name: featured.nameEn, emblem: featured.emblem, country: featured.country, currentSeason: null }
     : null;
 
   const [standings, scorers, matches] = await Promise.all([
@@ -349,7 +349,7 @@ export async function search(query: string): Promise<DataResult<SearchHit[]>> {
   const key = `search:${q.toLowerCase()}`;
   return cachedCall<SearchHit[]>(key, CACHE_TTL.SEARCH, 'searchTeams', async (p) => {
     const teams = await p.searchTeams(q);
-    const leagueHits: LeagueSearchHit[] = FEATURED_LEAGUES.filter(
+    const leagueHits: LeagueSearchHit[] = ALL_LEAGUES.filter(
       (l) =>
         l.nameEn.toLowerCase().includes(q.toLowerCase()) ||
         l.nameAr.includes(q) ||
@@ -357,7 +357,7 @@ export async function search(query: string): Promise<DataResult<SearchHit[]>> {
         l.countryAr.includes(q),
     ).map((l) => ({
       kind: 'league',
-      id: `fd~${l.fdCode}`,
+      id: leagueEntityId(l),
       code: l.fdCode,
       name: l.nameEn,
       emblem: l.emblem,

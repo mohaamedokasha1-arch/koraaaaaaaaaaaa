@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { getScorers } from '@/lib/football';
-import { featuredByFdCode, FEATURED_LEAGUES } from '@/lib/constants';
+import { isFdCovered, leagueByCode } from '@/lib/constants';
 import { ScorersTable } from '@/components/scorers-table';
 import { LeagueSelect } from '@/components/league-select';
 import { EmptyState, ErrorState, StaleNotice } from '@/components/empty-state';
@@ -26,10 +26,8 @@ export default async function TopScorersPage({
   const { locale } = await params;
   const { league } = await searchParams;
   const dict = getDictionary(locale);
-  const code = FEATURED_LEAGUES.some((l) => l.fdCode === league)
-    ? league!
-    : 'PL';
-  const featured = featuredByFdCode(code)!;
+  const code = leagueByCode(league) ? league! : 'PL';
+  const featured = leagueByCode(code)!;
   const leagueName = locale === 'ar' ? featured.nameAr : featured.nameEn;
 
   let result = null;
@@ -37,7 +35,9 @@ export default async function TopScorersPage({
   try {
     result = await getScorers(code);
   } catch {
-    failed = true;
+    // competitions outside football-data's free plan have no scorer feed in the
+    // configured providers — that is a "not available" state, not a breakage
+    failed = isFdCovered(code);
   }
 
   return (
@@ -51,15 +51,19 @@ export default async function TopScorersPage({
       </nav>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold text-white">
-          {dict.scorers.title} <span className="text-slate-400">— {leagueName}</span>
+        <h1 className="text-2xl font-extrabold tracking-tight text-white">
+          {dict.scorers.title} <span className="font-bold text-slate-400">— {leagueName}</span>
         </h1>
         <LeagueSelect locale={locale} current={code} basePath="/top-scorers" label={dict.standings.selectLeague} />
       </div>
+      <div aria-hidden="true" className="hairline-gold mt-4 w-24" />
 
       <div className="mt-6">
         {result?.stale && <div className="mb-4"><StaleNotice message={dict.common.cachedNotice} /></div>}
         {failed && <ErrorState title={dict.common.errorTitle} body={dict.common.errorBody} />}
+        {result === null && !failed && (
+          <EmptyState title={dict.common.noData} body={dict.common.dataUnavailable} />
+        )}
         {result && result.data.length === 0 && (
           <EmptyState title={dict.common.noData} body={dict.common.dataUnavailable} />
         )}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { getStandings } from '@/lib/football';
-import { featuredByFdCode, FEATURED_LEAGUES } from '@/lib/constants';
+import { leagueByCode } from '@/lib/constants';
 import { StandingsTable } from '@/components/standings-table';
 import { LeagueSelect } from '@/components/league-select';
 import { EmptyState, ErrorState, StaleNotice } from '@/components/empty-state';
@@ -26,10 +26,8 @@ export default async function StandingsPage({
   const { locale } = await params;
   const { league } = await searchParams;
   const dict = getDictionary(locale);
-  const code = FEATURED_LEAGUES.some((l) => l.fdCode === league)
-    ? league!
-    : 'PL';
-  const featured = featuredByFdCode(code)!;
+  const code = leagueByCode(league) ? league! : 'PL';
+  const featured = leagueByCode(code)!;
   const leagueName = locale === 'ar' ? featured.nameAr : featured.nameEn;
 
   let result = null;
@@ -51,11 +49,12 @@ export default async function StandingsPage({
       </nav>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold text-white">
-          {dict.standings.title} <span className="text-slate-400">— {leagueName}</span>
+        <h1 className="text-2xl font-extrabold tracking-tight text-white">
+          {dict.standings.title} <span className="font-bold text-slate-400">— {leagueName}</span>
         </h1>
         <LeagueSelect locale={locale} current={code} basePath="/standings" label={dict.standings.selectLeague} />
       </div>
+      <div aria-hidden="true" className="hairline-gold mt-4 w-24" />
 
       <div className="mt-6">
         {result?.stale && <div className="mb-4"><StaleNotice message={dict.common.cachedNotice} /></div>}

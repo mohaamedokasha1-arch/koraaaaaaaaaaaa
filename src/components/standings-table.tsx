@@ -11,6 +11,12 @@ const ZONE_CLASS: Record<NonNullable<StandingRow['zone']>, string> = {
   relegation: 'border-s-4 border-s-red-500 bg-red-500/5',
 };
 
+const ZONE_DOT: Record<NonNullable<StandingRow['zone']>, string> = {
+  champions: 'bg-pitch',
+  europe: 'bg-navy-400',
+  relegation: 'bg-red-500',
+};
+
 export function StandingsTable({
   rows,
   locale,
@@ -28,8 +34,8 @@ export function StandingsTable({
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-sm">
-          <thead>
-            <tr className="border-b border-navy-700 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-navy-900/60">
+            <tr className="border-b border-navy-700 text-[11px] uppercase tracking-wider text-slate-400">
               <th className="px-3 py-2.5 text-center font-semibold w-10">{t.pos}</th>
               <th className="px-3 py-2.5 text-start font-semibold">{t.team}</th>
               <th className="px-2 py-2.5 text-center font-semibold">{t.played}</th>
@@ -52,8 +58,10 @@ export function StandingsTable({
                   key={`${r.team.id}-${r.position}`}
                   className={`border-b border-navy-800/70 transition-colors hover:bg-navy-800/60 ${zoneClass} ${highlight}`}
                 >
-                  <td className="px-3 py-2.5 text-center font-semibold text-slate-300 tabular-nums">
-                    {num(r.position, locale)}
+                  <td className="px-3 py-2.5 text-center">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-navy-800/80 text-xs font-bold text-slate-200 tabular-nums ring-1 ring-inset ring-navy-700/60">
+                      {num(r.position, locale)}
+                    </span>
                   </td>
                   <td className="px-3 py-2.5">
                     <Link
@@ -73,7 +81,11 @@ export function StandingsTable({
                   <td className="px-2 py-2.5 text-center text-slate-300 tabular-nums">
                     {r.goalDifference > 0 ? `+${num(r.goalDifference, locale)}` : num(r.goalDifference, locale)}
                   </td>
-                  <td className="px-3 py-2.5 text-center font-bold text-white tabular-nums">{num(r.points, locale)}</td>
+                  <td className="px-3 py-2.5 text-center">
+                    <span className="inline-flex min-w-[2rem] items-center justify-center rounded-md bg-navy-700/60 px-1.5 py-0.5 font-bold text-white tabular-nums ring-1 ring-inset ring-navy-600/50">
+                      {num(r.points, locale)}
+                    </span>
+                  </td>
                   <td className="hidden md:table-cell px-3 py-2.5">
                     {r.form ? (
                       <div className="flex justify-center gap-1" aria-label={`${t.form}: ${r.form}`}>
@@ -98,16 +110,16 @@ export function StandingsTable({
           </tbody>
         </table>
       </div>
+      {/* legend lists only the zones this competition actually uses */}
       <div className="flex flex-wrap gap-4 border-t border-navy-700 px-4 py-3 text-xs text-slate-400">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-pitch" aria-hidden="true" /> {t.championsLeague}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-navy-400" aria-hidden="true" /> {t.europe}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-red-500" aria-hidden="true" /> {t.relegation}
-        </span>
+        {(['champions', 'europe', 'relegation'] as const)
+          .filter((zone) => rows.some((r) => r.zone === zone))
+          .map((zone) => (
+            <span key={zone} className="flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-sm ${ZONE_DOT[zone]}`} aria-hidden="true" />
+              {zone === 'champions' ? t.championsLeague : zone === 'europe' ? t.europe : t.relegation}
+            </span>
+          ))}
       </div>
     </div>
   );
