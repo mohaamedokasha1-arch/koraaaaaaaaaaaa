@@ -20,6 +20,7 @@ Open **http://localhost:3000** → redirects to `/ar` (or your last chosen local
 | Variable | Required | Purpose |
 |---|---|---|
 | `FOOTBALL_DATA_API_TOKEN` | ✅ | football-data.org token (sent as `X-Auth-Token`, **server-side only**) |
+| `CRON_SECRET` | recommended in production | Protects `/api/cron/warm`; Vercel Cron sends it as a Bearer token |
 | `API_FOOTBALL_KEY` | optional | api-football (API-SPORTS). Adapter auto-enables when present |
 | `THESPORTSDB_API_KEY` | optional | TheSportsDB key (public key `3` works with rate limits) |
 | `ESPN_PROVIDER_ENABLED` | optional | `false` disables the ESPN public scoreboard fallback |
@@ -71,12 +72,29 @@ The project deploys directly **GitHub → Vercel** with no extra services:
   an optimization layer only — correctness never depends on it surviving. To
   share cache across regions later, swap `src/lib/cache.ts` for Vercel KV/Redis.
 - **Filesystem:** nothing writes to disk at runtime.
-- **Background jobs:** none required. Data is pulled on demand through the cache.
-  The **optional** cache warmer `/api/cron/warm` is wired through `vercel.json`
-  Vercel Cron with a **daily** schedule (`0 6 * * *`) — safe on the free Hobby
-  plan (max 1/day). On Pro, change to e.g. `*/10 6-23 * * *` for warm live data.
+- **Automatic refresh:** live scores poll `/api/matches/live` every 30 seconds while
+  the tab is visible. Home/today/results refresh every 5 minutes, upcoming and
+  league fixture/result tabs every 15 minutes, and a live or near-kickoff match
+  detail every 60 seconds while open. Hidden tabs pause and refresh when shown;
+  provider calls are still governed by the server cache TTLs below.
+- **Background job:** `/api/cron/warm` is registered in `vercel.json` at
+  `0 6 * * *` (scheduled for 06:00 UTC, once daily, Hobby-compatible; Hobby
+  invocations may occur within the scheduled hour). It refreshes live/today
+  and adjacent date buckets and returns per-task status. This is a best-effort
+  cache warmer, not a durable sync: Vercel's in-memory cache is per serverless
+  instance, so a cron invocation does not guarantee that every later request or
+  region shares the warmed value. Vercel Cron runs on production deployments only.
+- **Higher-frequency background warming:** Vercel Hobby permits only daily Cron
+  schedules; a schedule such as `*/5 * * * *` requires Pro (or an external
+  scheduler that calls `/api/cron/warm`). If using Pro, change the cron expression
+  in `vercel.json` and redeploy. A shared Redis/KV cache is needed if warmed data
+  must persist across function instances/regions.
+- **No provider webhooks are configured:** the current adapters pull data on
+  requests/polls; this integration has no inbound webhook contract to set up.
 - **Failure mode:** if every provider is down, pages render honest empty/stale
-  states (HTTP 200) rather than crashing serverless functions.
+  states rather than fabricated data. External API availability, rate limits,
+  provider coverage, and deployment-plan limits prevent any system from promising
+  100% uninterrupted freshness.
 
 ## Multi-provider architecture
 
@@ -114,8 +132,11 @@ live 25s · match detail 60s · today 5m · results 10m · upcoming 15m ·
 league matches 15m · standings & scorers 1h · leagues/teams/squad 24h · search 30m
 
 Every payload is retained up to 24h past expiry as **stale** fallback for outage windows;
-the UI shows an amber "showing last saved version" notice when serving it.
-Swap `src/lib/cache.ts` for Redis/Vercel KV to share cache across regions.
+the UI shows an amber "showing last saved version" notice when serving it. `fetchedAt`
+tracks the last successful upstream/cache write (not the time a cached value was read),
+so the live screen's "last updated" indicator reflects actual data freshness.
+Swap `src/lib/cache.ts` for Redis/Vercel KV to share cache across regions and persist
+cron-warmed data between serverless instances.
 
 ## Routes
 
@@ -126,6 +147,7 @@ standings · top-scorers · teams + `/teams/[id]` (matches / squad / standings /
 matches/[id] (score header, events timeline, details, JSON-LD `SportsEvent`).
 
 API: `/api/matches/live` (30 s client poll, deduped by server cache) ·
+`/api/cron/warm` (scheduled cache warm + per-task report) ·
 `/api/search` (debounced, cross-provider) · `/api/health`.
 
 SEO: per-page localized metadata, hreflang, sitemap.xml, robots.txt, JSON-LD,
@@ -187,6 +209,7 @@ npm run typecheck  # tsc --noEmit
 - [x] `next build` passes with and without env vars
 - [x] No filesystem writes at runtime; no always-on processes
 - [x] All provider keys are server-only env vars
-- [x] Cron via Vercel Cron only (`vercel.json`, daily on free plan)
+- [x] Vercel Cron cache warmer (`vercel.json`, once daily on Hobby)
+- [x] Active match pages refresh automatically while visible; server TTLs pace provider calls
 - [x] Zero live API calls during the build
 - [x] GitHub → Vercel import requires no config changes

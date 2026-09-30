@@ -6,6 +6,7 @@ import { MatchList } from '@/components/match-list';
 import { ErrorState, StaleNotice } from '@/components/empty-state';
 import { formatDayGroup } from '@/lib/format';
 import type { UnifiedMatch } from '@/lib/types';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,7 @@ export default async function TodayPage({ params }: { params: Promise<{ locale: 
 
   return (
     <div className="container-page py-6 sm:py-8">
+      <AutoRefresh intervalMs={300_000} />
       <nav aria-label="breadcrumb" className="mb-4 text-xs text-slate-500">
         <ol className="flex items-center gap-1.5">
           <li><a href={`/${locale}`} className="hover:text-slate-300">{dict.nav.home}</a></li>

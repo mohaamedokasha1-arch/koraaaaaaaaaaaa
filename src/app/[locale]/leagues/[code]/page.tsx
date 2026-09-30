@@ -11,6 +11,7 @@ import { ScorersTable } from '@/components/scorers-table';
 import { MatchList } from '@/components/match-list';
 import { EmptyState, StaleNotice } from '@/components/empty-state';
 import { num } from '@/lib/format';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,7 @@ export default async function LeagueDetailPage({
 
   return (
     <div className="container-page py-6 sm:py-8">
+      {(tab === 'fixtures' || tab === 'results') && <AutoRefresh intervalMs={900_000} />}
       <nav aria-label="breadcrumb" className="mb-4 text-xs text-slate-500">
         <ol className="flex items-center gap-1.5">
           <li><Link href={`/${locale}`} className="hover:text-slate-300">{dict.nav.home}</Link></li>
