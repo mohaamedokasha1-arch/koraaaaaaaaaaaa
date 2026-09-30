@@ -25,10 +25,13 @@ const chains: Record<string, string[]> = {
   matchesByRange: ['fd', 'af', 'espn', 'tsdb'],
   match: ['fd', 'af', 'espn', 'tsdb'],
   leagues: ['fd', 'af'],
-  leagueMatches: ['fd', 'af'],
-  standings: ['fd', 'af'],
-  scorers: ['fd'],
-  leagueTeams: ['fd', 'af'],
+  // tsdb closes the chain for competitions football-data's free plan does not
+  // cover (it declines the featured ones as 'unsupported', so nothing changes
+  // for them, and it serves them from its own league tables/schedules).
+  leagueMatches: ['fd', 'af', 'tsdb'],
+  standings: ['fd', 'af', 'tsdb'],
+  scorers: ['fd', 'af'],
+  leagueTeams: ['fd', 'af', 'tsdb'],
   team: ['fd', 'tsdb'],
   teamMatches: ['fd', 'tsdb'],
   searchTeams: ['tsdb'],

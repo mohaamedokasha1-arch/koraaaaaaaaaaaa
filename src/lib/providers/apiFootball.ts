@@ -1,5 +1,5 @@
-import type { MatchStatus, StandingRow, UnifiedMatch } from '@/lib/types';
-import { encodeEntityId } from '@/lib/constants';
+import type { MatchStatus, Scorer, StandingRow, UnifiedMatch, UnifiedTeam } from '@/lib/types';
+import { encodeEntityId, leagueByCode } from '@/lib/constants';
 import type { FootballProvider } from './base';
 import { fetchJson, ProviderError } from './http';
 
@@ -77,6 +77,27 @@ async function api<T>(path: string): Promise<T> {
   return fetchJson<T>(`${BASE}${path}`, { headers: { 'x-apisports-key': KEY } });
 }
 
+/**
+ * api-football keys competitions by numeric id. Route codes we have a mapping
+ * for resolve through the league registry (e.g. the Egyptian Premier League is
+ * league 233); raw numeric ids keep working exactly as before.
+ * Seasons are labelled by their starting year; the flip happens in July.
+ */
+function afLeague(code: string): { id: string; season: number } | null {
+  if (/^\d+$/.test(code)) return { id: code, season: new Date().getFullYear() };
+  const league = leagueByCode(code);
+  if (!league?.afLeagueId) return null;
+  const now = new Date();
+  const startYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  return { id: league.afLeagueId, season: startYear };
+}
+
+function requireAfLeague(code: string): { id: string; season: number } {
+  const ref = afLeague(code);
+  if (!ref) throw new ProviderError(`api-football has no league mapping for ${code}`, 'unsupported');
+  return ref;
+}
+
 export const apiFootballProvider: FootballProvider = {
   id: 'af',
   name: 'api-football',
@@ -113,9 +134,8 @@ export const apiFootballProvider: FootballProvider = {
         }[][];
       };
     }
-    // api-football uses numeric league ids; accept them directly.
-    if (!/^\d+$/.test(code)) throw new ProviderError('api-football standings need numeric league id', 'unsupported');
-    const res = await api<{ response: AfStanding[] }>(`/standings?league=${code}&season=${new Date().getFullYear()}`);
+    const ref = requireAfLeague(code);
+    const res = await api<{ response: AfStanding[] }>(`/standings?league=${ref.id}&season=${ref.season}`);
     const groups = res.response?.[0]?.league?.standings ?? [];
     const rows: StandingRow[] = [];
     for (const group of groups) {
@@ -134,9 +154,71 @@ export const apiFootballProvider: FootballProvider = {
   },
 
   async getLeagues() { throw new ProviderError('not supported', 'unsupported'); },
-  async getLeagueMatches() { throw new ProviderError('not supported', 'unsupported'); },
-  async getScorers() { throw new ProviderError('not supported', 'unsupported'); },
-  async getTeams() { throw new ProviderError('not supported', 'unsupported'); },
+
+  async getLeagueMatches(code: string): Promise<UnifiedMatch[]> {
+    const ref = requireAfLeague(code);
+    const res = await api<{ response: AfFixture[] }>(`/fixtures?league=${ref.id}&season=${ref.season}`);
+    return (res.response ?? []).map(mapFixture);
+  },
+
+  async getScorers(code: string): Promise<Scorer[]> {
+    interface AfScorer {
+      player: { id?: number; name?: string };
+      statistics?: {
+        team?: { id?: number; name?: string; logo?: string };
+        goals?: { total?: number | null; assists?: number | null };
+        penalty?: { scored?: number | null };
+        games?: { appearences?: number | null };
+      }[];
+    }
+    const ref = requireAfLeague(code);
+    const res = await api<{ response: AfScorer[] }>(`/players/topscorers?league=${ref.id}&season=${ref.season}`);
+    return (res.response ?? []).map((s, i) => {
+      const stat = s.statistics?.[0];
+      return {
+        rank: i + 1,
+        playerId: s.player?.id != null ? String(s.player.id) : null,
+        name: s.player?.name ?? '—',
+        team: {
+          id: stat?.team?.id != null ? encodeEntityId('af', stat.team.id) : '',
+          name: stat?.team?.name ?? '',
+          shortName: null,
+          crest: stat?.team?.logo ?? null,
+        },
+        goals: stat?.goals?.total ?? 0,
+        assists: stat?.goals?.assists ?? null,
+        penalties: stat?.penalty?.scored ?? null,
+        played: stat?.games?.appearences ?? null,
+      };
+    });
+  },
+
+  async getTeams(code: string): Promise<UnifiedTeam[]> {
+    interface AfTeamEntry {
+      team?: { id?: number; name?: string; code?: string | null; country?: string | null; founded?: number | null; logo?: string | null };
+      venue?: { name?: string | null };
+    }
+    const ref = requireAfLeague(code);
+    const res = await api<{ response: AfTeamEntry[] }>(`/teams?league=${ref.id}&season=${ref.season}`);
+    return (res.response ?? [])
+      .filter((e) => e.team?.id != null && e.team.name)
+      .map((e) => ({
+        id: encodeEntityId('af', e.team!.id!),
+        provider: 'af',
+        providerId: String(e.team!.id),
+        name: e.team!.name!,
+        shortName: e.team!.code ?? null,
+        crest: e.team!.logo ?? null,
+        country: e.team!.country ?? null,
+        founded: e.team!.founded ?? null,
+        venue: e.venue?.name ?? null,
+        website: null,
+        coach: null,
+        squad: [],
+        leagueCode: code,
+      }));
+  },
+
   async getTeam() { throw new ProviderError('not supported', 'unsupported'); },
   async getTeamMatches() { throw new ProviderError('not supported', 'unsupported'); },
   async searchTeams() { throw new ProviderError('not supported', 'unsupported'); },

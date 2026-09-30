@@ -51,6 +51,7 @@ export function MatchList({
         return (
           <section key={key}>
             <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-200">
+              <span aria-hidden="true" className="h-4 w-[3px] rounded-full bg-[linear-gradient(180deg,#fbdf9b,#c8952c)]" />
               <TeamLogo src={league.emblem} alt={league.name} size={20} />
               {league.code ? (
                 <Link

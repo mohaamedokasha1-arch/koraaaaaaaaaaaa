@@ -177,8 +177,10 @@ export default async function MatchPage({
       </nav>
 
       {/* Score header */}
-      <header className="card relative overflow-hidden px-4 sm:px-8 py-8">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(47,83,145,0.25),transparent_60%)]" />
+      <header className="card relative overflow-hidden px-4 sm:px-8 py-9">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 hero-glow" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 pitch-pattern opacity-[0.11]" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-navy-950/60 to-transparent" />
         <div className="relative">
           <div className="mb-5 flex items-center justify-center gap-2 text-xs sm:text-sm text-slate-400">
             <TeamLogo src={m.league.emblem} alt={m.league.name} size={18} />
@@ -189,8 +191,10 @@ export default async function MatchPage({
           </div>
 
           <div className="mx-auto grid max-w-2xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-8">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <TeamLogo src={m.home.crest} alt={m.home.name} size={64} />
+            <div className="flex flex-col items-center gap-2.5 text-center">
+              <span className="crest-tile h-20 w-20">
+                <TeamLogo src={m.home.crest} alt={m.home.name} size={60} />
+              </span>
               <Link href={`/${locale}/teams/${m.home.id}`} className="text-sm sm:text-base font-bold text-white hover:text-navy-200">
                 {m.home.name}
               </Link>
@@ -198,7 +202,7 @@ export default async function MatchPage({
 
             <div className="flex flex-col items-center gap-1.5">
               {played ? (
-                <div className="flex items-center gap-2 sm:gap-3 text-4xl sm:text-5xl font-extrabold tabular-nums text-white">
+                <div className="flex items-center gap-2 sm:gap-3 text-4xl sm:text-5xl font-extrabold tabular-nums text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.45)]">
                   <span>{m.score.home ?? '–'}</span>
                   <span className="text-slate-600">-</span>
                   <span>{m.score.away ?? '–'}</span>
@@ -234,8 +238,10 @@ export default async function MatchPage({
               )}
             </div>
 
-            <div className="flex flex-col items-center gap-2 text-center">
-              <TeamLogo src={m.away.crest} alt={m.away.name} size={64} />
+            <div className="flex flex-col items-center gap-2.5 text-center">
+              <span className="crest-tile h-20 w-20">
+                <TeamLogo src={m.away.crest} alt={m.away.name} size={60} />
+              </span>
               <Link href={`/${locale}/teams/${m.away.id}`} className="text-sm sm:text-base font-bold text-white hover:text-navy-200">
                 {m.away.name}
               </Link>

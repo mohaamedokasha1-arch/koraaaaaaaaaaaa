@@ -36,7 +36,8 @@ export default async function UpcomingPage({ params }: { params: Promise<{ local
         </ol>
       </nav>
 
-      <h1 className="text-2xl font-extrabold text-white">{dict.nav.upcoming}</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-white">{dict.nav.upcoming}</h1>
+      <div aria-hidden="true" className="hairline-gold mt-4 w-24" />
 
       <div className="mt-6 space-y-10">
         {failed && <ErrorState title={dict.common.errorTitle} body={dict.common.errorBody} />}
@@ -45,7 +46,8 @@ export default async function UpcomingPage({ params }: { params: Promise<{ local
         )}
         {result?.data.map((group) => (
           <section key={group.date}>
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#d9a93f]" />
               {formatDayGroup(group.date, locale)}
             </h2>
             <MatchList matches={group.matches} locale={locale} dict={dict} />

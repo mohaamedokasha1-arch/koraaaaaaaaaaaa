@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { getLiveMatches, getMatchesByDate, getResults, localToday } from '@/lib/football';
-import { FEATURED_LEAGUES } from '@/lib/constants';
+import { ALL_LEAGUES } from '@/lib/constants';
 import { LiveMatches } from '@/components/live-matches';
 import { MatchList } from '@/components/match-list';
 import { TeamLogo } from '@/components/team-logo';
@@ -53,14 +53,23 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
   return (
     <div className="container-page py-6 sm:py-8 space-y-10">
       {/* Hero */}
-      <section className="card relative overflow-hidden px-6 py-10 sm:px-10 sm:py-14 text-center">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(47,83,145,0.35),transparent_60%)]" />
+      <section className="card relative overflow-hidden px-6 py-12 sm:px-10 sm:py-16 text-center">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 hero-glow" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 pitch-pattern opacity-[0.14]" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 field-texture opacity-60" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-navy-950/70 to-transparent" />
         <div className="relative">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-navy-300">{dict.site.tagline}</p>
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-white">{dict.home.heroTitle}</h1>
+          <p className="eyebrow mb-3 justify-center">{dict.site.tagline}</p>
+          <h1 className="text-hero mx-auto max-w-3xl text-2xl sm:text-4xl">{dict.home.heroTitle}</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm sm:text-base text-slate-400">{dict.home.heroSubtitle}</p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link href={`/${locale}/live`} className="btn-primary">{dict.nav.live}</Link>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <Link href={`/${locale}/live`} className="btn-primary relative">
+              <span aria-hidden="true" className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+              </span>
+              {dict.nav.live}
+            </Link>
             <Link href={`/${locale}/today`} className="btn-ghost">{dict.nav.today}</Link>
           </div>
         </div>
@@ -113,17 +122,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {FEATURED_LEAGUES.map((l) => (
+          {ALL_LEAGUES.map((l) => (
             <Link
               key={l.fdCode}
               href={`/${locale}/leagues/${l.fdCode}`}
-              className="card card-hover flex flex-col items-center gap-2 px-4 py-5 text-center"
+              className="card card-hover group flex flex-col items-center gap-3 px-4 py-5 text-center"
             >
-              <TeamLogo src={l.emblem} alt={l.nameEn} size={40} />
+              <span className="crest-tile h-14 w-14 transition-colors group-hover:ring-navy-500">
+                <TeamLogo src={l.emblem} alt={l.nameEn} size={38} />
+              </span>
               <span className="text-sm font-semibold text-white leading-tight">
                 {locale === 'ar' ? l.nameAr : l.nameEn}
               </span>
-              <span className="text-xs text-slate-500">{locale === 'ar' ? l.countryAr : l.country}</span>
+              <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                {locale === 'ar' ? l.countryAr : l.country}
+              </span>
             </Link>
           ))}
         </div>
@@ -134,8 +147,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
         <h2 className="section-title mb-3">{dict.home.quickNav}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {quickCards.map((c) => (
-            <Link key={c.href} href={c.href} className="card card-hover flex items-start gap-3 px-5 py-4">
-              <span className="mt-0.5 rounded-lg bg-navy-700 p-2 text-navy-200">
+            <Link key={c.href} href={c.href} className="card card-hover group flex items-start gap-3 px-5 py-4">
+              <span className="mt-0.5 rounded-lg bg-navy-700/80 p-2 text-navy-200 ring-1 ring-inset ring-navy-600/70 transition-colors group-hover:text-white group-hover:ring-navy-400/70">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <path d={c.icon} strokeLinecap="round" strokeLinejoin="round" />
                 </svg>

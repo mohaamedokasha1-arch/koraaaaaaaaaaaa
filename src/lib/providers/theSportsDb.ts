@@ -1,5 +1,12 @@
-import type { MatchStatus, UnifiedMatch, UnifiedTeam } from '@/lib/types';
-import { encodeEntityId, featuredByTsdbId } from '@/lib/constants';
+import type { MatchStatus, StandingRow, UnifiedMatch, UnifiedTeam } from '@/lib/types';
+import {
+  encodeEntityId,
+  featuredByTsdbId,
+  isFdCovered,
+  leagueByCode,
+  leagueEntityId,
+  type FeaturedLeague,
+} from '@/lib/constants';
 import type { FootballProvider } from './base';
 import { fetchJson, ProviderError } from './http';
 
@@ -39,6 +46,7 @@ interface TsdbTeam {
   strTeamShort?: string | null;
   strBadge?: string | null;
   strLeague?: string | null;
+  idLeague?: string | null;
   strCountry?: string | null;
   intFormedYear?: string | null;
   strStadium?: string | null;
@@ -46,8 +54,94 @@ interface TsdbTeam {
   strManager?: string | null;
 }
 
+interface TsdbStanding {
+  intRank?: string | null;
+  idTeam?: string | null;
+  strTeam?: string | null;
+  strBadge?: string | null;
+  strForm?: string | null;
+  strDescription?: string | null;
+  intPlayed?: string | null;
+  intWin?: string | null;
+  intDraw?: string | null;
+  intLoss?: string | null;
+  intGoalsFor?: string | null;
+  intGoalsAgainst?: string | null;
+  intGoalDifference?: string | null;
+  intPoints?: string | null;
+}
+
 function badge(b: string | null | undefined): string | null {
   return b ? `${b}/tiny` : null;
+}
+
+/** TheSportsDB ships schedule/table numbers as strings. */
+const int = (v: string | null | undefined): number => {
+  if (v == null || v === '') return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * Season labels for competitions that run on a European calendar
+ * (e.g. "2026-2027"); the season flips in July.
+ */
+function seasonCandidates(): string[] {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const start = now.getUTCMonth() >= 6 ? year : year - 1;
+  return [`${start}-${start + 1}`, `${start - 1}-${start}`];
+}
+
+/**
+ * TheSportsDB is the registered data source for the competitions that are NOT on
+ * football-data.org's free plan (EXTRA_LEAGUES). Featured competitions keep their
+ * own primary + fallback chain, so this adapter declines them with 'unsupported'
+ * (a capability gap — it never trips the circuit breaker).
+ */
+function tsdbLeagueFor(code: string): FeaturedLeague {
+  const league = leagueByCode(code);
+  if (!league || isFdCovered(league.fdCode)) {
+    throw new ProviderError(`thesportsdb league data not mapped for ${code}`, 'unsupported');
+  }
+  return league;
+}
+
+/** Table rows flagged by the provider's own description text, never guessed. */
+function zoneOf(description: string | null | undefined): StandingRow['zone'] {
+  const d = (description ?? '').toLowerCase();
+  if (/relegat|rebaixamento|descenso/.test(d)) return 'relegation';
+  if (/champions league|libertadores|caf champions|afc champions|europa league|conference league/.test(d)) {
+    return 'champions';
+  }
+  return null;
+}
+
+function mapStanding(r: TsdbStanding): StandingRow {
+  const goalsFor = int(r.intGoalsFor);
+  const goalsAgainst = int(r.intGoalsAgainst);
+  return {
+    position: int(r.intRank),
+    team: {
+      id: encodeEntityId('tsdb', r.idTeam ?? r.strTeam ?? ''),
+      name: r.strTeam ?? '',
+      shortName: null,
+      crest: r.strBadge ?? null,
+    },
+    played: int(r.intPlayed),
+    won: int(r.intWin),
+    draw: int(r.intDraw),
+    lost: int(r.intLoss),
+    goalsFor,
+    goalsAgainst,
+    goalDifference: r.intGoalDifference != null && r.intGoalDifference !== ''
+      ? int(r.intGoalDifference)
+      : goalsFor - goalsAgainst,
+    points: int(r.intPoints),
+    form: r.strForm ?? null,
+    zone: zoneOf(r.strDescription),
+    group: null,
+  };
 }
 
 function mapStatus(e: TsdbEvent): MatchStatus {
@@ -96,7 +190,7 @@ function mapEvent(e: TsdbEvent): UnifiedMatch {
       away: played && e.intAwayScore != null && e.intAwayScore !== '' ? Number(e.intAwayScore) : null,
     },
     league: {
-      id: featured ? encodeEntityId('fd', featured.fdCode) : e.idLeague ? encodeEntityId('tsdb', e.idLeague) : '',
+      id: featured ? leagueEntityId(featured) : e.idLeague ? encodeEntityId('tsdb', e.idLeague) : '',
       code: featured?.fdCode ?? null,
       name: e.strLeague ?? featured?.nameEn ?? '',
       emblem: featured?.emblem ?? null,
@@ -110,7 +204,15 @@ function mapEvent(e: TsdbEvent): UnifiedMatch {
   };
 }
 
-function mapTeam(t: TsdbTeam): UnifiedTeam {
+/** League code for a tsdb league id — resolved only for the competitions this
+ *  adapter is the registered data source of. */
+function leagueCodeForTsdbId(idLeague: string | null | undefined): string | null {
+  if (!idLeague) return null;
+  const league = featuredByTsdbId(idLeague);
+  return league && !isFdCovered(league.fdCode) ? league.fdCode : null;
+}
+
+function mapTeam(t: TsdbTeam, leagueCode: string | null = null): UnifiedTeam {
   return {
     id: encodeEntityId('tsdb', t.idTeam),
     provider: 'tsdb',
@@ -124,7 +226,7 @@ function mapTeam(t: TsdbTeam): UnifiedTeam {
     website: t.strWebsite || null,
     coach: t.strManager ?? null,
     squad: [],
-    leagueCode: null,
+    leagueCode: leagueCode ?? leagueCodeForTsdbId(t.idLeague),
   };
 }
 
@@ -204,7 +306,7 @@ export const theSportsDbProvider: FootballProvider = {
     return (res.teams ?? [])
       .filter((t) => /soccer/i.test((t as unknown as { strSport?: string }).strSport ?? 'Soccer'))
       .slice(0, 12)
-      .map(mapTeam);
+      .map((t) => mapTeam(t));
   },
 
   async getTeamMatches(parts: string[], kind: 'recent' | 'upcoming'): Promise<UnifiedMatch[]> {
@@ -220,8 +322,72 @@ export const theSportsDbProvider: FootballProvider = {
   },
 
   async getLeagues() { throw new ProviderError('not supported', 'unsupported'); },
-  async getLeagueMatches() { throw new ProviderError('not supported', 'unsupported'); },
-  async getStandings() { throw new ProviderError('not supported', 'unsupported'); },
+
+  /**
+   * League table. The public key caps this endpoint at 5 rows and the full table
+   * is unlocked by a Patreon key (THESPORTSDB_API_KEY), so the adapter returns
+   * whatever the plan authorises — never padded, never fabricated.
+   */
+  async getStandings(code: string): Promise<StandingRow[]> {
+    const league = tsdbLeagueFor(code);
+    for (const season of seasonCandidates()) {
+      const res = await fetchJson<{ table?: TsdbStanding[] | null }>(
+        `${BASE}/lookuptable.php?l=${encodeURIComponent(league.tsdbId)}&s=${encodeURIComponent(season)}`,
+      );
+      const rows = (res.table ?? []).map(mapStanding).filter((r) => r.team.name);
+      if (rows.length > 0) return rows;
+    }
+    return [];
+  },
+
+  /**
+   * League schedule: the season's events (full list on a supporter key) merged
+   * with the provider's most recent result and next fixture, so the page is
+   * fresh even on the free tier. Per-day fan-out is avoided on purpose —
+   * the day endpoint is capped at a handful of events globally.
+   */
+  async getLeagueMatches(code: string): Promise<UnifiedMatch[]> {
+    const league = tsdbLeagueFor(code);
+    const id = encodeURIComponent(league.tsdbId);
+    const [season, past, next] = await Promise.allSettled([
+      fetchJson<{ events?: TsdbEvent[] | null }>(
+        `${BASE}/eventsseason.php?id=${id}&s=${encodeURIComponent(seasonCandidates()[0])}`,
+      ),
+      fetchJson<{ events?: TsdbEvent[] | null }>(`${BASE}/eventspastleague.php?id=${id}`),
+      fetchJson<{ events?: TsdbEvent[] | null }>(`${BASE}/eventsnextleague.php?id=${id}`),
+    ]);
+
+    const lists = [season, past, next].flatMap((r) =>
+      r.status === 'fulfilled' ? [r.value.events ?? []] : [],
+    );
+    if (lists.length === 0) {
+      throw new ProviderError(`thesportsdb league schedule unreachable for ${code}`, 'network');
+    }
+
+    const seen = new Set<string>();
+    const matches: UnifiedMatch[] = [];
+    for (const e of lists.flat()) {
+      if (!e?.idEvent || seen.has(e.idEvent)) continue;
+      seen.add(e.idEvent);
+      const m = mapEvent(e);
+      if (m.home.name && m.away.name) matches.push(m);
+    }
+    return matches.sort((a, b) => a.utcDate.localeCompare(b.utcDate));
+  },
+
+  /** Clubs of a league (the free key returns the first 10; a key returns all). */
+  async getTeams(code: string): Promise<UnifiedTeam[]> {
+    const league = tsdbLeagueFor(code);
+    if (!league.tsdbName) {
+      throw new ProviderError(`thesportsdb team list needs a league name for ${code}`, 'unsupported');
+    }
+    const res = await fetchJson<{ teams?: TsdbTeam[] | null }>(
+      `${BASE}/search_all_teams.php?l=${encodeURIComponent(league.tsdbName)}`,
+    );
+    return (res.teams ?? [])
+      .filter((t) => t?.idTeam && t.strTeam)
+      .map((t) => mapTeam(t, league.fdCode));
+  },
+
   async getScorers() { throw new ProviderError('not supported', 'unsupported'); },
-  async getTeams() { throw new ProviderError('not supported', 'unsupported'); },
 };

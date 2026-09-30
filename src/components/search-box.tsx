@@ -67,7 +67,7 @@ export function SearchBox({ locale, dict }: { locale: Locale; dict: Dictionary }
           onFocus={() => results.length && setOpen(true)}
           placeholder={dict.search.placeholder}
           aria-label={dict.search.title}
-          className="w-44 lg:w-64 rounded-lg border border-navy-600 bg-navy-800 py-2 ps-9 pe-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 min-h-[40px]"
+          className="w-44 lg:w-64 rounded-lg border border-navy-600 bg-navy-800/80 py-2 ps-9 pe-3 text-sm text-white placeholder:text-slate-400 transition-colors hover:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-400 min-h-[40px]"
         />
         <svg viewBox="0 0 24 24" aria-hidden="true" className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="7" />
@@ -79,7 +79,7 @@ export function SearchBox({ locale, dict }: { locale: Locale; dict: Dictionary }
       </div>
 
       {open && q.trim().length >= 2 && (
-        <div className="absolute start-0 end-0 sm:start-auto sm:end-0 sm:w-80 top-full mt-2 rounded-xl border border-navy-600 bg-navy-850 p-2 shadow-lift max-h-96 overflow-y-auto">
+        <div className="absolute start-0 end-0 sm:start-auto sm:end-0 sm:w-80 top-full mt-2 max-h-96 overflow-y-auto rounded-xl border border-navy-600 bg-navy-850 p-2 shadow-lift ring-1 ring-black/40">
           {results.length === 0 && !loading && (
             <p className="px-3 py-4 text-sm text-slate-400">{dict.common.emptySearch}</p>
           )}

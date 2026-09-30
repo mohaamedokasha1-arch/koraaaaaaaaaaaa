@@ -38,7 +38,9 @@ export function NavLinks({
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[40px] inline-flex items-center ${
-              active ? 'bg-navy-700 text-white' : 'text-slate-300 hover:bg-navy-800 hover:text-white'
+              active
+                ? 'bg-navy-700 text-white shadow-[inset_0_-2px_0_0_rgba(217,169,63,0.9)]'
+                : 'text-slate-300 hover:bg-navy-800 hover:text-white'
             }`}
           >
             {item.label}
@@ -92,7 +94,7 @@ export function MobileNav({ locale, dict }: { locale: Locale; dict: Dictionary }
       {open && (
         <nav
           aria-label="Mobile"
-          className="absolute end-0 top-full mt-2 w-56 rounded-xl border border-navy-600 bg-navy-850 p-2 shadow-lift"
+          className="absolute end-0 top-full mt-2 w-56 rounded-xl border border-navy-600 bg-navy-850 p-2 shadow-lift ring-1 ring-black/40"
         >
           {[...items(locale, dict), ...extra].map((item) => (
             <Link

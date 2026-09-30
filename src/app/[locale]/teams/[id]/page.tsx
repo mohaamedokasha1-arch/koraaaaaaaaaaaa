@@ -119,14 +119,17 @@ export default async function TeamPage({
         </ol>
       </nav>
 
-      <header className="card flex flex-wrap items-center gap-4 px-5 py-5">
-        <TeamLogo src={team.crest} alt={team.name} size={64} />
-        <div className="min-w-0">
-          <h1 className="truncate text-xl sm:text-2xl font-extrabold text-white">{team.name}</h1>
-          <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
-            {team.country && <span>{dict.teams.country}: {team.country}</span>}
-            {team.founded && <span>{dict.teams.founded} {num(team.founded, locale)}</span>}
-            {team.venue && <span>{team.venue}</span>}
+      <header className="card relative flex flex-wrap items-center gap-4 overflow-hidden px-5 py-5">
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0 hero-glow opacity-70" />
+        <span className="crest-tile relative h-20 w-20">
+          <TeamLogo src={team.crest} alt={team.name} size={62} />
+        </span>
+        <div className="relative min-w-0">
+          <h1 className="truncate text-xl sm:text-2xl font-extrabold tracking-tight text-white">{team.name}</h1>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            {team.country && <span className="chip"><span className="text-slate-500">{dict.teams.country}:</span> {team.country}</span>}
+            {team.founded && <span className="chip"><span className="text-slate-500">{dict.teams.founded}</span> {num(team.founded, locale)}</span>}
+            {team.venue && <span className="chip">{team.venue}</span>}
           </p>
         </div>
         {team.website && (
@@ -134,7 +137,7 @@ export default async function TeamPage({
             href={team.website.startsWith('http') ? team.website : `https://${team.website}`}
             target="_blank"
             rel="noopener noreferrer nofollow"
-            className="btn-ghost ms-auto text-xs"
+            className="btn-ghost relative ms-auto text-xs"
           >
             {dict.teams.website} ↗
           </a>

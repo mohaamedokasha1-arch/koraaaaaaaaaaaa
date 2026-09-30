@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { getLeagueBundle } from '@/lib/football';
-import { featuredByFdCode } from '@/lib/constants';
+import { leagueByCode } from '@/lib/constants';
 import { TeamLogo } from '@/components/team-logo';
 import { StandingsTable } from '@/components/standings-table';
 import { ScorersTable } from '@/components/scorers-table';
@@ -28,7 +28,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, code } = await params;
   const dict = getDictionary(locale);
-  const featured = featuredByFdCode(code);
+  const featured = leagueByCode(code);
   const name = locale === 'ar' ? featured?.nameAr ?? code : featured?.nameEn ?? code;
   return {
     title: localeTitle(locale, name, dict),
@@ -50,7 +50,7 @@ export default async function LeagueDetailPage({
   const { locale, code } = await params;
   const { tab: tabParam } = await searchParams;
   const dict = getDictionary(locale);
-  const featured = featuredByFdCode(code);
+  const featured = leagueByCode(code);
   if (!featured) notFound();
 
   const tab: Tab = isTab(tabParam) ? tabParam : 'standings';
@@ -94,11 +94,16 @@ export default async function LeagueDetailPage({
         </ol>
       </nav>
 
-      <header className="card flex items-center gap-4 px-5 py-4">
-        <TeamLogo src={featured.emblem} alt={leagueName} size={52} />
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white">{leagueName}</h1>
-          <p className="text-sm text-slate-400">{locale === 'ar' ? featured.countryAr : featured.country}</p>
+      <header className="card relative flex items-center gap-4 overflow-hidden px-5 py-5">
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0 hero-glow opacity-70" />
+        <span className="crest-tile relative h-16 w-16">
+          <TeamLogo src={featured.emblem} alt={leagueName} size={48} />
+        </span>
+        <div className="relative min-w-0">
+          <h1 className="truncate text-xl sm:text-2xl font-extrabold tracking-tight text-white">{leagueName}</h1>
+          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+            <span className="chip">{locale === 'ar' ? featured.countryAr : featured.country}</span>
+          </p>
         </div>
       </header>
 
@@ -156,7 +161,7 @@ export default async function LeagueDetailPage({
                   href={`/${locale}/teams/${r.team.id}`}
                   className="card card-hover flex items-center gap-3 px-4 py-3"
                 >
-                  <span className="w-6 text-center text-xs font-bold text-slate-500 tabular-nums">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-navy-800/80 text-xs font-bold text-slate-300 tabular-nums ring-1 ring-inset ring-navy-700/60">
                     {num(r.position, locale)}
                   </span>
                   <TeamLogo src={r.team.crest} alt={r.team.name} size={26} />

@@ -8,7 +8,7 @@ import type {
   UnifiedMatch,
   UnifiedTeam,
 } from '@/lib/types';
-import { encodeEntityId, FEATURED_LEAGUES } from '@/lib/constants';
+import { encodeEntityId, featuredByFdCode, FEATURED_LEAGUES } from '@/lib/constants';
 import type { FootballProvider } from './base';
 import { fetchJson, ProviderError } from './http';
 
@@ -189,6 +189,19 @@ async function api<T>(path: string): Promise<T> {
   return fetchJson<T>(`${BASE}${path}`, { headers: { 'X-Auth-Token': TOKEN } });
 }
 
+/**
+ * football-data.org only serves its own competition codes. Codes owned by other
+ * providers (e.g. the Egyptian Premier League) are a capability gap, not an
+ * outage — throwing 'unsupported' keeps the circuit breaker clean and lets the
+ * fallback chain hand the request to the right adapter.
+ */
+function fdCompetition(code: string): string {
+  if (!featuredByFdCode(code)) {
+    throw new ProviderError(`football-data.org does not serve competition ${code}`, 'unsupported');
+  }
+  return code;
+}
+
 export const footballDataProvider: FootballProvider = {
   id: 'fd',
   name: 'football-data.org',
@@ -250,7 +263,9 @@ export const footballDataProvider: FootballProvider = {
   },
 
   async getLeagueMatches(code: string): Promise<UnifiedMatch[]> {
-    const res = await api<{ matches: FdMatch[] }>(`/competitions/${encodeURIComponent(code)}/matches`);
+    const res = await api<{ matches: FdMatch[] }>(
+      `/competitions/${encodeURIComponent(fdCompetition(code))}/matches`,
+    );
     return (res.matches ?? []).map((m) => mapMatch(m));
   },
 
@@ -260,7 +275,9 @@ export const footballDataProvider: FootballProvider = {
       goalsFor: number; goalsAgainst: number; goalDifference: number; points: number; form?: string | null;
     }
     interface FdGroup { stage?: string; type?: string; group?: string | null; table: FdRow[] }
-    const res = await api<{ standings: FdGroup[] }>(`/competitions/${encodeURIComponent(code)}/standings`);
+    const res = await api<{ standings: FdGroup[] }>(
+      `/competitions/${encodeURIComponent(fdCompetition(code))}/standings`,
+    );
     const rows: StandingRow[] = [];
     const groups = res.standings ?? [];
     const relegationCut = 3; // highlight last N as relegation-ish zone
@@ -300,7 +317,9 @@ export const footballDataProvider: FootballProvider = {
       player: { id?: number; name?: string; nationality?: string; dateOfBirth?: string; position?: string };
       team: FdTeam; goals: number; assists?: number | null; penalties?: number | null; playedMatches?: number;
     }
-    const res = await api<{ scorers: FdScorer[] }>(`/competitions/${encodeURIComponent(code)}/scorers?limit=25`);
+    const res = await api<{ scorers: FdScorer[] }>(
+      `/competitions/${encodeURIComponent(fdCompetition(code))}/scorers?limit=25`,
+    );
     return (res.scorers ?? []).map((s, i) => ({
       rank: i + 1,
       playerId: s.player?.id != null ? String(s.player.id) : null,
@@ -317,7 +336,9 @@ export const footballDataProvider: FootballProvider = {
     interface FdTeamFull extends FdTeam {
       area?: FdArea; venue?: string; founded?: number; website?: string;
     }
-    const res = await api<{ teams: FdTeamFull[] }>(`/competitions/${encodeURIComponent(code)}/teams`);
+    const res = await api<{ teams: FdTeamFull[] }>(
+      `/competitions/${encodeURIComponent(fdCompetition(code))}/teams`,
+    );
     return (res.teams ?? []).map((t) => ({
       id: encodeEntityId('fd', t.id),
       provider: 'fd',

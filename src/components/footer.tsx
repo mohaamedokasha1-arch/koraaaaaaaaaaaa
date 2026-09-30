@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Dictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
-import { FEATURED_LEAGUES } from '@/lib/constants';
+import { ALL_LEAGUES } from '@/lib/constants';
 import { Logo } from './logo';
 
 export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
@@ -15,21 +15,25 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
   ];
 
   return (
-    <footer className="mt-12 border-t border-navy-700/60 bg-navy-900">
-      <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
+    <footer className="relative mt-14 border-t border-navy-700/60 bg-navy-900/80">
+      <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 -top-px h-px bg-[linear-gradient(90deg,transparent,rgba(217,169,63,0.5),transparent)]" />
+      <span aria-hidden="true" className="pointer-events-none absolute inset-0 field-texture opacity-70" />
+      <div className="container-page relative grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8" />
+          <div className="flex items-center gap-2.5">
+            <Logo className="h-9 w-9" />
             <span className="text-lg font-extrabold text-white">{dict.site.name}</span>
           </div>
-          <p className="mt-3 text-sm text-slate-400">{dict.footer.about}</p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-400">{dict.footer.about}</p>
+          <div aria-hidden="true" className="mt-4 h-px w-16 bg-[linear-gradient(90deg,rgba(217,169,63,0.8),transparent)]" />
         </div>
         <nav aria-label={dict.footer.sections}>
           <p className="mb-3 text-sm font-bold text-white">{dict.footer.sections}</p>
           <ul className="space-y-2">
             {sections.map((s) => (
               <li key={s.href}>
-                <Link href={s.href} className="link-accent text-sm">
+                <Link href={s.href} className="link-accent inline-flex items-center gap-2 text-sm">
+                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-navy-400" />
                   {s.label}
                 </Link>
               </li>
@@ -39,7 +43,7 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
         <nav aria-label={dict.footer.leagues} className="lg:col-span-2">
           <p className="mb-3 text-sm font-bold text-white">{dict.footer.leagues}</p>
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {FEATURED_LEAGUES.map((l) => (
+            {ALL_LEAGUES.map((l) => (
               <li key={l.fdCode}>
                 <Link href={`/${locale}/leagues/${l.fdCode}`} className="link-accent text-sm">
                   {locale === 'ar' ? l.nameAr : l.nameEn}
@@ -49,7 +53,7 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
           </ul>
         </nav>
       </div>
-      <div className="border-t border-navy-700/60 py-4">
+      <div className="relative border-t border-navy-700/60 py-4">
         <p className="container-page text-center text-xs text-slate-500">
           © {new Date().getFullYear()} {dict.site.name} — {dict.footer.rights}
         </p>

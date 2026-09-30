@@ -66,8 +66,9 @@ export default async function TodayPage({ params }: { params: Promise<{ locale: 
         </ol>
       </nav>
 
-      <h1 className="text-2xl font-extrabold text-white">{dict.nav.today}</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-white">{dict.nav.today}</h1>
       <p className="mt-1 text-sm text-slate-400">{formatDayGroup(today, locale)}</p>
+      <div aria-hidden="true" className="hairline-gold mt-4 w-24" />
 
       <div className="mt-6">
         {result?.stale && <div className="mb-4"><StaleNotice message={dict.common.cachedNotice} /></div>}

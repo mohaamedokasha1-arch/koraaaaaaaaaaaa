@@ -65,7 +65,7 @@ export function LiveMatches({
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
           </span>
           {dict.home.liveNow}
-          <span className="rounded-md bg-navy-700 px-2 py-0.5 text-xs font-bold text-slate-200 tabular-nums">
+          <span className="rounded-md bg-navy-700/80 px-2 py-0.5 text-xs font-bold text-slate-200 tabular-nums ring-1 ring-inset ring-navy-600/60">
             {matches.length}
           </span>
         </h2>
@@ -82,7 +82,7 @@ export function LiveMatches({
             type="button"
             onClick={() => mutate()}
             disabled={isValidating}
-            className="inline-flex items-center gap-1 rounded-md border border-navy-600 px-2 py-1.5 font-medium text-slate-300 transition-colors hover:bg-navy-800 hover:text-white disabled:opacity-50 min-h-[32px]"
+            className="inline-flex items-center gap-1 rounded-md border border-navy-600 bg-navy-800/60 px-2 py-1.5 font-medium text-slate-300 transition-colors hover:border-navy-400/60 hover:bg-navy-800 hover:text-white disabled:opacity-50 min-h-[32px]"
             aria-label={dict.common.refresh}
           >
             <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 ${isValidating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
