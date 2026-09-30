@@ -27,8 +27,15 @@ export const CACHE_TTL = {
 
 interface Entry<T> {
   value: T;
+  fetchedAt: string; // time the upstream value was last refreshed (not last read)
   expiresAt: number; // fresh window
   hardExpiresAt: number; // absolute drop time (stale window ends)
+}
+
+export interface CacheHit<T> {
+  value: T;
+  stale: boolean;
+  fetchedAt: string;
 }
 
 /** Stale payloads are kept for this long after expiry, to survive outages. */
@@ -38,33 +45,42 @@ const MAX_ENTRIES = 2000;
 class MemoryCache {
   private store = new Map<string, Entry<unknown>>();
 
-  get<T>(key: string): { value: T; stale: boolean } | null {
+  get<T>(key: string): CacheHit<T> | null {
     const entry = this.store.get(key) as Entry<T> | undefined;
     if (!entry) return null;
     const now = Date.now();
-    if (now < entry.expiresAt) return { value: entry.value, stale: false };
-    if (now < entry.hardExpiresAt) return { value: entry.value, stale: true };
+    if (now < entry.expiresAt) {
+      return { value: entry.value, stale: false, fetchedAt: entry.fetchedAt };
+    }
+    if (now < entry.hardExpiresAt) {
+      return { value: entry.value, stale: true, fetchedAt: entry.fetchedAt };
+    }
     this.store.delete(key);
     return null;
   }
 
-  getStale<T>(key: string): T | null {
+  getStale<T>(key: string): Pick<CacheHit<T>, 'value' | 'fetchedAt'> | null {
     const entry = this.store.get(key) as Entry<T> | undefined;
     if (!entry) return null;
     const now = Date.now();
-    if (now < entry.hardExpiresAt) return entry.value;
+    if (now < entry.hardExpiresAt) {
+      return { value: entry.value, fetchedAt: entry.fetchedAt };
+    }
     this.store.delete(key);
     return null;
   }
 
-  set<T>(key: string, value: T, ttlSeconds: number): void {
+  set<T>(key: string, value: T, ttlSeconds: number): string {
     if (this.store.size >= MAX_ENTRIES) this.evict();
     const now = Date.now();
+    const fetchedAt = new Date(now).toISOString();
     this.store.set(key, {
       value,
+      fetchedAt,
       expiresAt: now + ttlSeconds * 1000,
       hardExpiresAt: now + ttlSeconds * 1000 + STALE_GRACE_MS,
     });
+    return fetchedAt;
   }
 
   delete(key: string): void {

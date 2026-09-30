@@ -1,22 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLiveMatches, getMatchesByDate, localToday } from '@/lib/football';
+import type { DataResult, UnifiedMatch } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * Vercel Cron cache warmer — keeps the "live" and "today" caches hot so the
- * first visitor of the day never pays the cold-provider cost.
+ * Vercel Cron cache warmer. It refreshes the current live scoreboard and the
+ * surrounding day buckets, using the same provider fallback chain as page
+ * requests. This is a best-effort warmer, not a durable background sync: the
+ * cache is in-memory per serverless instance.
  *
  * Security: when CRON_SECRET is set in env, callers must send
  *   Authorization: Bearer <CRON_SECRET>
- * (Vercel does this automatically for scheduled crons.) Warming without a
- * secret leaks nothing sensitive, but the check prevents abuse of upstream
- * rate limits.
- *
- * Hobby plan: crons run at most once per day → schedule "0 6 * * *" (default
- * in vercel.json). Pro plan: raise to every 5-15 min for warmer live data.
+ * (Vercel Cron does this automatically.) Configure it in production to stop
+ * public callers from spending the upstream providers' rate limits.
  */
+
+function shiftDate(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function matchCount(data: unknown): number | null {
+  return Array.isArray(data) ? data.length : null;
+}
+
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (secret) {
@@ -27,20 +37,43 @@ export async function GET(request: NextRequest) {
   }
 
   const today = localToday();
-  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const jobs: { name: string; run: () => Promise<DataResult<UnifiedMatch[]>> }[] = [
+    { name: 'live', run: getLiveMatches },
+    { name: 'today', run: () => getMatchesByDate(today) },
+    { name: 'yesterday', run: () => getMatchesByDate(shiftDate(today, -1)) },
+    { name: 'tomorrow', run: () => getMatchesByDate(shiftDate(today, 1)) },
+  ];
 
-  const results = await Promise.allSettled([
-    getLiveMatches(),
-    getMatchesByDate(today),
-    getMatchesByDate(yesterday),
-    getMatchesByDate(tomorrow),
-  ]);
+  const tasks = await Promise.all(jobs.map(async ({ name, run }) => {
+    try {
+      const result = await run();
+      return {
+        name,
+        ok: true,
+        stale: result.stale,
+        source: result.source,
+        fetchedAt: result.fetchedAt,
+        matches: matchCount(result.data),
+      };
+    } catch {
+      // Do not expose provider URLs or provider-specific errors in a public response.
+      return { name, ok: false, stale: false, source: 'none', fetchedAt: null, matches: null };
+    }
+  }));
 
-  const ok = results.filter((r) => r.status === 'fulfilled').length;
-  return NextResponse.json({
-    warmed: ok,
-    failed: results.length - ok,
-    at: new Date().toISOString(),
-  });
+  const failed = tasks.filter((task) => !task.ok).length;
+  const stale = tasks.filter((task) => task.ok && task.stale).length;
+  const warmed = tasks.filter((task) => task.ok && !task.stale).length;
+
+  return NextResponse.json(
+    {
+      ok: failed === 0 && stale === 0,
+      warmed,
+      stale,
+      failed,
+      tasks,
+      at: new Date().toISOString(),
+    },
+    { status: failed === tasks.length ? 503 : 200, headers: { 'Cache-Control': 'no-store' } },
+  );
 }

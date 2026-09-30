@@ -61,16 +61,16 @@ async function cachedCall<T>(
 ): Promise<DataResult<T>> {
   const cached = cache.get<T>(cacheKey);
   if (cached && !cached.stale) {
-    return { data: cached.value, source: 'cache', stale: false, fetchedAt: new Date().toISOString() };
+    return { data: cached.value, source: 'cache', stale: false, fetchedAt: cached.fetchedAt };
   }
   try {
     const { data, source } = await withFallback(capability, run);
-    cache.set(cacheKey, data, ttl);
-    return { data, source, stale: false, fetchedAt: new Date().toISOString() };
+    const fetchedAt = cache.set(cacheKey, data, ttl);
+    return { data, source, stale: false, fetchedAt };
   } catch (err) {
     const stale = cache.getStale<T>(cacheKey);
     if (stale != null) {
-      return { data: stale, source: 'cache', stale: true, fetchedAt: new Date().toISOString() };
+      return { data: stale.value, source: 'cache', stale: true, fetchedAt: stale.fetchedAt };
     }
     throw new ServiceError(`all providers failed for ${cacheKey}`, err);
   }
@@ -223,7 +223,7 @@ export async function getMatch(id: string): Promise<DataResult<UnifiedMatch> | n
   const cacheKey = `match:${id}`;
   const cached = cache.get<UnifiedMatch>(cacheKey);
   if (cached && !cached.stale) {
-    return { data: cached.value, source: 'cache', stale: false, fetchedAt: new Date().toISOString() };
+    return { data: cached.value, source: 'cache', stale: false, fetchedAt: cached.fetchedAt };
   }
   // only the provider that owns this id can resolve it
   const owner = getProviderById(decoded.provider);
@@ -231,11 +231,11 @@ export async function getMatch(id: string): Promise<DataResult<UnifiedMatch> | n
   try {
     const match = await owner.getMatch(decoded.parts);
     if (!match) return null;
-    cache.set(cacheKey, match, CACHE_TTL.MATCH_DETAIL);
-    return { data: match, source: owner.id, stale: false, fetchedAt: new Date().toISOString() };
+    const fetchedAt = cache.set(cacheKey, match, CACHE_TTL.MATCH_DETAIL);
+    return { data: match, source: owner.id, stale: false, fetchedAt };
   } catch (err) {
     const stale = cache.getStale<UnifiedMatch>(cacheKey);
-    if (stale) return { data: stale, source: 'cache', stale: true, fetchedAt: new Date().toISOString() };
+    if (stale) return { data: stale.value, source: 'cache', stale: true, fetchedAt: stale.fetchedAt };
     throw err;
   }
 }
@@ -299,18 +299,18 @@ export async function getTeam(id: string): Promise<DataResult<UnifiedTeam> | nul
   const cacheKey = `team:${id}`;
   const cached = cache.get<UnifiedTeam>(cacheKey);
   if (cached && !cached.stale) {
-    return { data: cached.value, source: 'cache', stale: false, fetchedAt: new Date().toISOString() };
+    return { data: cached.value, source: 'cache', stale: false, fetchedAt: cached.fetchedAt };
   }
   const owner = getProviderById(decoded.provider);
   if (!owner) throw new ServiceError(`provider ${decoded.provider} unavailable`);
   try {
     const team = await owner.getTeam(decoded.parts);
     if (!team) return null;
-    cache.set(cacheKey, team, CACHE_TTL.TEAM_INFO);
-    return { data: team, source: owner.id, stale: false, fetchedAt: new Date().toISOString() };
+    const fetchedAt = cache.set(cacheKey, team, CACHE_TTL.TEAM_INFO);
+    return { data: team, source: owner.id, stale: false, fetchedAt };
   } catch (err) {
     const stale = cache.getStale<UnifiedTeam>(cacheKey);
-    if (stale) return { data: stale, source: 'cache', stale: true, fetchedAt: new Date().toISOString() };
+    if (stale) return { data: stale.value, source: 'cache', stale: true, fetchedAt: stale.fetchedAt };
     throw err;
   }
 }
@@ -328,15 +328,15 @@ export async function getTeamMatches(
   const cacheKey = `teamMatches:${teamId}:${kind}`;
   const cached = cache.get<UnifiedMatch[]>(cacheKey);
   if (cached && !cached.stale) {
-    return { data: cached.value, source: 'cache', stale: false, fetchedAt: new Date().toISOString() };
+    return { data: cached.value, source: 'cache', stale: false, fetchedAt: cached.fetchedAt };
   }
   try {
     const matches = await owner.getTeamMatches(decoded.parts, kind);
-    cache.set(cacheKey, matches, ttl);
-    return { data: matches, source: owner.id, stale: false, fetchedAt: new Date().toISOString() };
+    const fetchedAt = cache.set(cacheKey, matches, ttl);
+    return { data: matches, source: owner.id, stale: false, fetchedAt };
   } catch {
     const stale = cache.getStale<UnifiedMatch[]>(cacheKey);
-    if (stale) return { data: stale, source: 'cache', stale: true, fetchedAt: new Date().toISOString() };
+    if (stale) return { data: stale.value, source: 'cache', stale: true, fetchedAt: stale.fetchedAt };
     return { data: [], source: 'none', stale: false, fetchedAt: new Date().toISOString() };
   }
 }

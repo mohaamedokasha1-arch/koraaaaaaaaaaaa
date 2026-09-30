@@ -8,6 +8,7 @@ import { LiveMatches } from '@/components/live-matches';
 import { MatchList } from '@/components/match-list';
 import { TeamLogo } from '@/components/team-logo';
 import { ErrorState } from '@/components/empty-state';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
 
   return (
     <div className="container-page py-6 sm:py-8 space-y-10">
+      <AutoRefresh intervalMs={300_000} />
       {/* Hero */}
       <section className="card relative overflow-hidden px-6 py-12 sm:px-10 sm:py-16 text-center">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 hero-glow" />

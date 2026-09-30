@@ -8,6 +8,7 @@ import type { MatchEvent, UnifiedMatch } from '@/lib/types';
 import { TeamLogo } from '@/components/team-logo';
 import { ErrorState, StaleNotice } from '@/components/empty-state';
 import { formatFullDate, minuteLabel, num } from '@/lib/format';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,6 +129,11 @@ export default async function MatchPage({
 
   const m = result.data;
   const played = m.status !== 'scheduled' && m.status !== 'postponed' && m.status !== 'cancelled';
+  const kickoff = new Date(m.utcDate).getTime();
+  const shouldRefreshMatch =
+    m.status === 'live' ||
+    m.status === 'halftime' ||
+    (m.status === 'scheduled' && kickoff >= Date.now() - 3 * 60 * 60 * 1000 && kickoff <= Date.now() + 60 * 60 * 1000);
   const title = titleOf(m, dict);
   const statusText =
     m.status === 'live'
@@ -157,6 +163,7 @@ export default async function MatchPage({
 
   return (
     <div className="container-page py-6 sm:py-8 space-y-6">
+      {shouldRefreshMatch && <AutoRefresh intervalMs={60_000} />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <nav aria-label="breadcrumb" className="text-xs text-slate-500">
