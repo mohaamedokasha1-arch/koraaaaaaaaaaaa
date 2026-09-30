@@ -8,13 +8,14 @@ import { TeamLogo } from '@/components/team-logo';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { locale: Locale } }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
+export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const dict = getDictionary(locale);
   return { title: `${dict.leagues.title} - ${dict.site.name}`, description: dict.site.description };
 }
 
-export default async function LeaguesPage({ params }: { params: { locale: Locale } }) {
-  const { locale } = params;
+export default async function LeaguesPage({ params }: { params: Promise<{ locale: Locale }> }) {
+  const { locale } = await params;
   const dict = getDictionary(locale);
 
   // live provider list when available; the curated featured list is the baseline

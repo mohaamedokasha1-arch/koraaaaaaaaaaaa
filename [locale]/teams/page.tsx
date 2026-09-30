@@ -10,8 +10,9 @@ import { EmptyState, ErrorState } from '@/components/empty-state';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { locale: Locale } }): Promise<Metadata> {
-  const dict = getDictionary(params.locale);
+export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const dict = getDictionary(locale);
   return { title: `${dict.teams.title} - ${dict.site.name}`, description: dict.site.description };
 }
 
@@ -19,13 +20,14 @@ export default async function TeamsPage({
   params,
   searchParams,
 }: {
-  params: { locale: Locale };
-  searchParams: { league?: string };
+  params: Promise<{ locale: Locale }>;
+  searchParams: Promise<{ league?: string }>;
 }) {
-  const { locale } = params;
+  const { locale } = await params;
+  const { league } = await searchParams;
   const dict = getDictionary(locale);
-  const code = FEATURED_LEAGUES.some((l) => l.fdCode === searchParams.league)
-    ? searchParams.league!
+  const code = FEATURED_LEAGUES.some((l) => l.fdCode === league)
+    ? league!
     : 'PL';
   const featured = featuredByFdCode(code)!;
   const leagueName = locale === 'ar' ? featured.nameAr : featured.nameEn;

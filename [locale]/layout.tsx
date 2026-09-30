@@ -14,9 +14,10 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 export async function generateMetadata({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const locale = (isLocale(params.locale) ? params.locale : 'ar') as Locale;
+  const { locale: rawLocale } = await params;
+  const locale = (isLocale(rawLocale) ? rawLocale : 'ar') as Locale;
   const dict = getDictionary(locale);
   return {
     metadataBase: new URL(SITE_URL),
@@ -51,20 +52,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function LocaleLayout({
+export default async function LocaleLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
-  if (!isLocale(params.locale)) notFound();
-  const locale = params.locale as Locale;
+  const { locale: rawLocale } = await params;
+  if (!isLocale(rawLocale)) notFound();
+  const locale = rawLocale as Locale;
   const dict = getDictionary(locale);
   const dir = localeDir(locale);
 
   return (
-    <html lang={locale} dir={dir} className="dark">
+    <html lang={locale} dir={dir} className="dark" data-scroll-behavior="smooth">
       <body className="flex min-h-screen flex-col bg-navy-950 text-slate-100">
         <a
           href="#main"
