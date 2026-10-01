@@ -225,6 +225,7 @@ Official broadcast centre: [operating guide](docs/live/README.md) · [follow-up 
 | `docs/AUDIT.md` | Phase 0 read-only audit + baseline (stack, routes, providers, coverage matrix, SEO state, risks) |
 | `docs/SOURCE-EVALUATION.md` | Every candidate source checked, with licence, quota, coverage and accept/reject reason |
 | `docs/INDEXING-AUDIT.md` | Crawl/indexing audit: page-type inventory, robots/sitemap/canonical before vs after, thin-content rules, what could not be verified |
+| `docs/SEO-CHECKLIST.md` | SEO implementation map for this codebase: env vars, sitemap index, robots, canonical/hreflang, 404 handling, and the Vercel/GSC steps that cannot be done from the repo |
 
 ## Deliberate scope decisions (vs. the master brief)
 
@@ -243,11 +244,16 @@ npm run dev        # develop
 npm run build      # production build
 npm start          # production server
 npm run typecheck  # tsc --noEmit
+npm run lint       # eslint
 npm test           # node:test unit tests for the pure parsers/normalisers
+npm run seo:check -- https://your-domain.com   # live crawl/indexability audit (exit 1 on any failure)
 ```
 
-> There is no `lint` script in this repository (no ESLint configured) — the quality
-> gates are `typecheck`, `build`, `test` and the crawl checks documented in `docs/`.
+`seo:check` verifies a deployed origin end to end: HTTP status (including a real 404),
+self-referencing absolute canonical, reciprocal hreflang + `x-default`, indexability,
+title/description/`og:image`/JSON-LD, robots.txt (does not block `/_next/static`,
+declares the sitemap), every sitemap child plus a sample of its URLs, `noindex` on
+`/api/*`, and the www ⇄ apex redirect. See `docs/SEO-CHECKLIST.md`.
 
 ## Production checklist
 
@@ -258,6 +264,8 @@ npm test           # node:test unit tests for the pure parsers/normalisers
 - [x] Active match pages refresh automatically while visible; server TTLs pace provider calls
 - [x] Zero live API calls during the build
 - [x] GitHub → Vercel import requires no config changes
+- [ ] `NEXT_PUBLIC_SITE_URL` set to the final https domain in Vercel → Settings → Environment Variables (**Production**), then redeploy — `/api/health` reports `seo.site_url` when it is wrong
+- [ ] `npm run seo:check -- https://your-domain.com` reports 0 failures after the first deploy
 
 ## Official broadcast centre (opt-in)
 

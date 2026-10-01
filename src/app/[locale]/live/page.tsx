@@ -39,7 +39,7 @@ export default async function LivePage({ params }: { params: Promise<{ locale: L
           <li aria-current="page" className="text-slate-300">{dict.nav.live}</li>
         </ol>
       </nav>
-      <LiveMatches locale={locale} dict={dict} initial={initial} />
+      <LiveMatches locale={locale} dict={dict} initial={initial} headingLevel="h1" />
     </div>
   );
 }

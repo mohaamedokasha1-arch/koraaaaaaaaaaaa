@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "live:validate": "node scripts/live/validate.mjs",
     "live:sync": "node scripts/live/sync.mjs",
+    "seo:check": "node scripts/seo-check.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
