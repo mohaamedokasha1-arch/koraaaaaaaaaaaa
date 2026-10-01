@@ -8,7 +8,7 @@ import nextVitals from 'eslint-config-next/core-web-vitals';
  * (typecheck → lint → tests → build) instead of being skipped.
  */
 export default defineConfig([
-  { ignores: ['.next/**', 'node_modules/**', 'public/sw.js'] },
+  { ignores: ['**/.next/**', 'node_modules/**', 'test-results/**', 'playwright-report/**', 'public/sw.js'] },
   ...nextVitals,
   {
     rules: {

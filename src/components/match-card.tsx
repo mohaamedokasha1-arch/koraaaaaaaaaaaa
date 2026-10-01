@@ -5,6 +5,8 @@ import type { UnifiedMatch } from '@/lib/types';
 import { TeamLogo } from './team-logo';
 import { StatusChip, MinuteLabel } from './match-status';
 import { num } from '@/lib/format';
+import { WatchMatchLink } from '@/features/live/components/WatchMatchLink';
+import { LIVE_ENABLED } from '@/features/live/lib/config';
 
 /** Status accent rail on the leading edge of every row. */
 const RAIL: Record<UnifiedMatch['status'], string> = {
@@ -38,6 +40,7 @@ export function MatchCard({
   const isLive = match.status === 'live' || match.status === 'halftime';
 
   return (
+    <div>
     <Link
       href={`/${locale}/matches/${match.id}`}
       className={`card card-hover group block overflow-hidden px-3 sm:px-4 py-3 ${isLive ? 'card-live' : ''}`}
@@ -90,5 +93,7 @@ export function MatchCard({
         </div>
       </div>
     </Link>
+    {LIVE_ENABLED && <WatchMatchLink matchId={match.id} locale={locale} />}
+    </div>
   );
 }

@@ -1,0 +1,39 @@
+name: Official broadcast discovery
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: official-broadcast-discovery
+  cancel-in-progress: false
+jobs:
+  sync:
+    # Explicit opt-in: empty whitelist/secrets means zero YouTube requests.
+    if: vars.LIVE_DISCOVERY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run live:validate
+      - name: Discover reviewed sources, then validate output
+        run: npm run live:sync && npm run live:validate
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          SCOREBAT_API_TOKEN: ${{ secrets.SCOREBAT_API_TOKEN }}
+          NEXT_PUBLIC_LIVE_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_LIVE_SUPABASE_URL }}
+          LIVE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.LIVE_SUPABASE_SERVICE_ROLE_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-broadcast-catalogue
+          path: |
+            public/live/catalog.json
+            public/live/discoveries.json
+          retention-days: 7
+          if-no-files-found: error
