@@ -12,6 +12,7 @@ import { AutoRefresh } from '@/components/auto-refresh';
 import { pageMetadata } from '@/lib/seo';
 import { getNews, newsEnabled, newsSources } from '@/lib/news';
 import { NewsList, NewsAttribution } from '@/components/news-list';
+import { getUserTimeZone } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: L
 
 export default async function HomePage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
+  const tz = await getUserTimeZone();
   const dict = getDictionary(locale);
 
   const [liveResult, todayResult, newsResult] = await Promise.allSettled([
@@ -104,7 +106,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           </Link>
         </div>
         {today && today.data.length > 0 ? (
-          <MatchList matches={today.data.slice(0, 12)} locale={locale} dict={dict} />
+          <MatchList matches={today.data.slice(0, 12)} locale={locale} dict={dict} tz={tz} />
         ) : recent ? (
           <div className="space-y-6">
             <p className="text-sm text-slate-400">{dict.common.emptyMatchesBody}</p>
@@ -113,12 +115,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
                 <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
                   {new Date(`${g.date}T12:00:00Z`).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </h3>
-                <MatchList matches={g.matches.slice(0, 10)} locale={locale} dict={dict} />
+                <MatchList matches={g.matches.slice(0, 10)} locale={locale} dict={dict} tz={tz} />
               </div>
             ))}
           </div>
         ) : today ? (
-          <MatchList matches={[]} locale={locale} dict={dict} />
+          <MatchList matches={[]} locale={locale} dict={dict} tz={tz} />
         ) : (
           <ErrorState title={dict.common.errorTitle} body={dict.common.dataUnavailable} />
         )}

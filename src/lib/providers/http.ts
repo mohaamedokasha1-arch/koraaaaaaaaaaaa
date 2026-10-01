@@ -3,6 +3,8 @@
  * and typed errors so the fallback layer can distinguish failure modes.
  */
 
+import { trackUpstreamCall } from '@/lib/observability';
+
 export const PROVIDER_UA = 'KoraScore/0.1 (+https://korascore.app)';
 
 export class ProviderError extends Error {
@@ -42,15 +44,23 @@ export async function fetchText(
   for (;;) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = Date.now();
     try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': PROVIDER_UA,
-          ...init.headers,
-        },
-        signal: controller.signal,
-        cache: 'no-store',
-      });
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers: {
+            'User-Agent': PROVIDER_UA,
+            ...init.headers,
+          },
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        trackUpstreamCall(url, Date.now() - startedAt, res.ok);
+      } catch (fetchError) {
+        trackUpstreamCall(url, Date.now() - startedAt, false);
+        throw fetchError;
+      }
       clearTimeout(timer);
 
       if (res.ok) {
@@ -97,15 +107,24 @@ export async function fetchJson<T>(
   for (;;) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = Date.now();
     try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': PROVIDER_UA,
-          ...init.headers,
-        },
-        signal: controller.signal,
-        cache: 'no-store',
-      });
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers: {
+            'User-Agent': PROVIDER_UA,
+            ...init.headers,
+          },
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        trackUpstreamCall(url, Date.now() - startedAt, res.ok);
+      } catch (fetchError) {
+        // A thrown fetch (timeout/network) is still a call that must be counted.
+        trackUpstreamCall(url, Date.now() - startedAt, false);
+        throw fetchError;
+      }
       clearTimeout(timer);
 
       if (res.ok) return (await res.json()) as T;

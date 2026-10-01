@@ -166,3 +166,75 @@ export type SearchHit = LeagueSearchHit | TeamSearchHit;
  */
 export type { FeedItem as NewsItem } from './pure/rss';
 
+/** An entity link attached to a news item (team/league/country). */
+export interface NewsEntityLink {
+  id: string;
+  name: string;
+}
+
+export type NewsKind =
+  | 'match'
+  | 'transfer'
+  | 'injury'
+  | 'coach'
+  | 'competition'
+  | 'national'
+  | 'general';
+
+export type NewsHubSection =
+  | 'latest'
+  | 'egypt'
+  | 'arab'
+  | 'england'
+  | 'spain'
+  | 'italy'
+  | 'germany'
+  | 'france'
+  | 'africa'
+  | 'europe'
+  | 'world';
+
+/**
+ * A headline after the intelligence pipeline: language, type, linked entities,
+ * hub section and (when licensed) an image. Never contains article text.
+ */
+export interface NewsEntry {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  sourceUrl: string;
+  publishedAt: string | null;
+  excerpt: string;
+  imageUrl?: string | null;
+  language: 'ar' | 'en' | 'other';
+  category: NewsKind;
+  hub: NewsHubSection;
+  entities: NewsEntityLink[];
+}
+
+/** One real-world story, possibly covered by several sources. */
+export interface NewsStory {
+  id: string;
+  entry: NewsEntry;
+  /** Every source that covered the same story (including the representative). */
+  coverage: NewsEntityLink[];
+  related: NewsEntry[];
+  itemCount: number;
+  firstSeen: string | null;
+  lastSeen: string | null;
+}
+
+export interface NewsSourceHealthView {
+  id: string;
+  name: string;
+  language: 'ar' | 'en' | 'multi';
+  status: string;
+  state: 'closed' | 'open' | 'half-open' | 'idle';
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  consecutiveFailures: number;
+  avgLatencyMs: number;
+  attributionRequired: boolean;
+}
+

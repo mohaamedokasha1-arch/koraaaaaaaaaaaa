@@ -8,6 +8,7 @@ import { ErrorState, StaleNotice } from '@/components/empty-state';
 import { formatDayGroup } from '@/lib/format';
 import type { UnifiedMatch } from '@/lib/types';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { getUserTimeZone } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,25 +28,28 @@ function Section({
   matches,
   locale,
   dict,
+  tz,
   accent,
 }: {
   title: string;
   matches: UnifiedMatch[];
   locale: Locale;
   dict: ReturnType<typeof getDictionary>;
+  tz?: string;
   accent?: string;
 }) {
   if (matches.length === 0) return null;
   return (
     <section className="mt-8">
       <h2 className={`section-title mb-3 ${accent ?? ''}`}>{title}</h2>
-      <MatchList matches={matches} locale={locale} dict={dict} />
+      <MatchList matches={matches} locale={locale} dict={dict} tz={tz} />
     </section>
   );
 }
 
 export default async function TodayPage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
+  const tz = await getUserTimeZone();
   const dict = getDictionary(locale);
   const today = localToday();
 
@@ -75,21 +79,21 @@ export default async function TodayPage({ params }: { params: Promise<{ locale: 
       </nav>
 
       <h1 className="text-2xl font-extrabold tracking-tight text-white">{dict.nav.today}</h1>
-      <p className="mt-1 text-sm text-slate-400">{formatDayGroup(today, locale)}</p>
+      <p className="mt-1 text-sm text-slate-400">{formatDayGroup(today, locale, tz)}</p>
       <div aria-hidden="true" className="hairline-gold mt-4 w-24" />
 
       <div className="mt-6">
         {result?.stale && <div className="mb-4"><StaleNotice message={dict.common.cachedNotice} /></div>}
         {failed && <ErrorState title={dict.common.errorTitle} body={dict.common.errorBody} />}
         {isEmpty && (
-          <MatchList matches={[]} locale={locale} dict={dict} emptyTitle={dict.common.emptyMatches} emptyBody={dict.common.emptyMatchesBody} />
+          <MatchList matches={[]} locale={locale} dict={dict} tz={tz} emptyTitle={dict.common.emptyMatches} emptyBody={dict.common.emptyMatchesBody} />
         )}
         {result && result.data.length > 0 && (
           <>
-            <Section title={dict.home.liveNow} matches={live} locale={locale} dict={dict} accent="text-red-400" />
-            <Section title={dict.nav.upcoming} matches={upcoming} locale={locale} dict={dict} />
-            <Section title={dict.nav.results} matches={finished} locale={locale} dict={dict} />
-            <Section title={dict.match.statusPostponed} matches={other} locale={locale} dict={dict} />
+            <Section title={dict.home.liveNow} matches={live} locale={locale} dict={dict} tz={tz} accent="text-red-400" />
+            <Section title={dict.nav.upcoming} matches={upcoming} locale={locale} dict={dict} tz={tz} />
+            <Section title={dict.nav.results} matches={finished} locale={locale} dict={dict} tz={tz} />
+            <Section title={dict.match.statusPostponed} matches={other} locale={locale} dict={dict} tz={tz} />
           </>
         )}
       </div>

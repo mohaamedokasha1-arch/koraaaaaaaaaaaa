@@ -54,3 +54,78 @@ test('parseFeedConfig only accepts http(s) feeds and keeps the operator label', 
   assert.equal(feeds[0].homepage, 'https://feeds.bbci.co.uk');
   assert.deepEqual(parseFeedConfig(undefined), []);
 });
+
+test('SECURITY: off-site links are rejected on a dot boundary, not a suffix match', () => {
+  const feed = { name: 'BBC Sport', url: 'https://feeds.bbci.co.uk/sport/football/rss.xml' };
+
+  // Regression cases for the previous endsWith(root) check:
+  const evil = `<item><title>Hostile</title><link>https://evil.co.uk/steal</link></item>
+    <item><title>Brandalike</title><link>https://evilexample.com/steal</link></item>
+    <item><title>Subdomain lookalike</title><link>https://evilbbci.co.uk/steal</link></item>
+    <item><title>Same host</title><link>https://feeds.bbci.co.uk/ok/1</link></item>`;
+  const items = parseFeed(`<rss><channel>${evil}</channel></rss>`, feed);
+  assert.deepEqual(items.map((i) => i.url), ['https://feeds.bbci.co.uk/ok/1']);
+
+  // A publisher whose articles live on another of its own hosts must be
+  // configured explicitly — no guessing.
+  const bbc = {
+    name: 'BBC Sport',
+    url: 'https://feeds.bbci.co.uk/sport/football/rss.xml',
+    allowedHosts: ['bbc.co.uk', 'bbci.co.uk'],
+  };
+  const withAllowList = parseFeed(
+    `<rss><channel><item><title>Real story</title><link>https://www.bbc.co.uk/sport/football/articles/abc</link></item>
+     <item><title>Off-site</title><link>https://evil.co.uk/steal</link></item></channel></rss>`,
+    bbc,
+  );
+  assert.equal(withAllowList.length, 1);
+  assert.ok(withAllowList[0].url.startsWith('https://www.bbc.co.uk/'));
+});
+
+test('feed images are only surfaced when the source is verified to allow them', () => {
+  const xml = `<rss><channel><item>
+    <title>Story with a picture</title>
+    <link>https://example.com/a</link>
+    <media:content url="https://example.com/img/a.jpg" />
+  </item></channel></rss>`;
+
+  const closed = parseFeed(xml, { name: 'Example', url: 'https://example.com/rss' });
+  assert.equal(closed[0].imageUrl, null, 'unverified sources never yield images');
+
+  const allowed = parseFeed(xml, { name: 'Example', url: 'https://example.com/rss', imagesAllowed: true });
+  assert.equal(allowed[0].imageUrl, 'https://example.com/img/a.jpg');
+
+  const offsite = parseFeed(
+    `<rss><channel><item><title>x</title><link>https://example.com/a</link>
+     <media:content url="https://cdn.evil.net/a.jpg" /></item></channel></rss>`,
+    { name: 'Example', url: 'https://example.com/rss', imagesAllowed: true },
+  );
+  assert.equal(offsite[0].imageUrl, null, 'images follow the same host policy as links');
+});
+
+test('parseFeedConfig carries an explicit host allow-list and homepage', () => {
+  const feeds = parseFeedConfig('BBC Sport|https://feeds.bbci.co.uk/sport/football/rss.xml|https://www.bbc.co.uk/sport|bbc.co.uk;bbci.co.uk');
+  assert.equal(feeds.length, 1);
+  assert.deepEqual(feeds[0].allowedHosts, ['bbc.co.uk', 'bbci.co.uk']);
+  assert.equal(feeds[0].homepage, 'https://www.bbc.co.uk/sport');
+});
+
+test('a feed may link to its own registrable domain but never to a lookalike', () => {
+  const feed = { name: 'Example Sport', url: 'https://feeds.example.com/football.xml' };
+  const items = parseFeed(
+    `<rss><channel>
+      <item><title>Same site</title><link>https://www.example.com/a</link></item>
+      <item><title>Lookalike</title><link>https://evilexample.com/a</link></item>
+      <item><title>Other suffix</title><link>https://evil.co.uk/a</link></item>
+    </channel></rss>`,
+    feed,
+  );
+  assert.deepEqual(items.map((i) => i.title), ['Same site']);
+
+  const bbcFeed = { name: 'BBC', url: 'https://feeds.bbci.co.uk/sport/football/rss.xml' };
+  const bbcItems = parseFeed(
+    `<rss><channel><item><title>Other BBC brand host</title><link>https://www.bbc.co.uk/sport/x</link></item></channel></rss>`,
+    bbcFeed,
+  );
+  assert.equal(bbcItems.length, 0, 'different registrable domain needs the explicit allow-list');
+});

@@ -6,6 +6,7 @@ import { isLocale, localeDir, type Locale } from '@/i18n/locales';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { siteJsonLd } from '@/lib/seo';
+import { PwaRegister } from '@/components/pwa-register';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
@@ -83,6 +84,7 @@ export default async function LocaleLayout({
           {children}
         </main>
         <Footer locale={locale} dict={dict} />
+        <PwaRegister />
       </body>
     </html>
   );

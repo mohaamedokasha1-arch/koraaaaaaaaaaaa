@@ -14,8 +14,11 @@ import type {
 import { CACHE_TTL, cache, getOrSet } from '@/lib/cache';
 import { ALL_LEAGUES, decodeEntityId, leagueByCode, leagueEntityId } from '@/lib/constants';
 import { getProviderById, withFallback, type Capability } from '@/lib/providers/registry';
-import { expandQuery, matchesQuery, normalizeText } from '@/lib/normalize';
 import type { FootballProvider } from '@/lib/providers/base';
+import { reconcileMatchBatch, reconcileOne } from '@/lib/matchStore';
+import { registerFromMatches, registerFromProviderTeam, resolveTeamRoute } from '@/lib/entities';
+import { searchUnified } from '@/lib/search';
+import { trackSourcePayload } from '@/lib/observability';
 
 /**
  * Service facade — the ONLY data entry point for pages and API routes.
@@ -54,6 +57,21 @@ export function localToday(tz = process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE ?? 'Afr
   }
 }
 
+/** Match payloads pass through validation/reconciliation and teach the registry. */
+function looksLikeMatches(items: unknown[]): boolean {
+  const first = items[0] as Partial<UnifiedMatch> | undefined;
+  return Boolean(first && typeof first === 'object' && 'utcDate' in first && 'home' in first && 'away' in first);
+}
+
+function postProcess<T>(data: T, source: string): T {
+  if (Array.isArray(data) && data.length > 0 && looksLikeMatches(data as unknown[])) {
+    const reconciled = reconcileMatchBatch(data as unknown as UnifiedMatch[], source);
+    registerFromMatches(reconciled, source);
+    return reconciled as unknown as T;
+  }
+  return data;
+}
+
 async function cachedCall<T>(
   cacheKey: string,
   ttl: number,
@@ -66,8 +84,10 @@ async function cachedCall<T>(
   }
   try {
     const { data, source } = await withFallback(capability, run);
-    const fetchedAt = cache.set(cacheKey, data, ttl);
-    return { data, source, stale: false, fetchedAt };
+    const processed = postProcess(data, source);
+    trackSourcePayload(source, Array.isArray(processed) ? processed.length : 0);
+    const fetchedAt = cache.set(cacheKey, processed, ttl);
+    return { data: processed, source, stale: false, fetchedAt };
   } catch (err) {
     const stale = cache.getStale<T>(cacheKey);
     if (stale != null) {
@@ -232,8 +252,9 @@ export async function getMatch(id: string): Promise<DataResult<UnifiedMatch> | n
   try {
     const match = await owner.getMatch(decoded.parts);
     if (!match) return null;
-    const fetchedAt = cache.set(cacheKey, match, CACHE_TTL.MATCH_DETAIL);
-    return { data: match, source: owner.id, stale: false, fetchedAt };
+    const validated = reconcileOne(match, owner.id);
+    const fetchedAt = cache.set(cacheKey, validated, CACHE_TTL.MATCH_DETAIL);
+    return { data: validated, source: owner.id, stale: false, fetchedAt };
   } catch (err) {
     const stale = cache.getStale<UnifiedMatch>(cacheKey);
     if (stale) return { data: stale.value, source: 'cache', stale: true, fetchedAt: stale.fetchedAt };
@@ -288,25 +309,40 @@ export async function getScorers(code: string): Promise<DataResult<Scorer[]>> {
 
 // ---------------------------------------------------------------- teams ----
 export async function getLeagueTeams(code: string): Promise<DataResult<UnifiedTeam[]>> {
-  return cachedCall<UnifiedTeam[]>(`leagueTeams:${code}`, CACHE_TTL.TEAM_INFO, 'leagueTeams', (p) => p.getTeams(code));
+  const result = await cachedCall<UnifiedTeam[]>(
+    `leagueTeams:${code}`,
+    CACHE_TTL.TEAM_INFO,
+    'leagueTeams',
+    (p) => p.getTeams(code),
+  );
+  for (const team of result.data) registerFromProviderTeam(team, result.source, code);
+  return result;
 }
 
 /** Request-memoized variant (metadata + render share one provider call). */
 export const getTeamMemo = reactCache(async (id: string) => getTeam(id));
 
 export async function getTeam(id: string): Promise<DataResult<UnifiedTeam> | null> {
-  const decoded = decodeEntityId(id);
-  if (!decoded) return null;
-  const cacheKey = `team:${id}`;
+  // Accepts the entity slug (`al-ahly-eg`) AND the legacy provider id
+  // (`fd~57`, `tsdb~138995`) — existing links and indexed URLs keep working.
+  const resolved = await resolveTeamRoute(id);
+  if (!resolved || !resolved.provider) return null;
+  const { provider, parts } = resolved.provider;
+  const cacheKey = `team:${resolved.entity.id}`;
   const cached = cache.get<UnifiedTeam>(cacheKey);
   if (cached && !cached.stale) {
     return { data: cached.value, source: 'cache', stale: false, fetchedAt: cached.fetchedAt };
   }
-  const owner = getProviderById(decoded.provider);
-  if (!owner) throw new ServiceError(`provider ${decoded.provider} unavailable`);
+  const owner = getProviderById(provider);
+  if (!owner) throw new ServiceError(`provider ${provider} unavailable`);
   try {
-    const team = await owner.getTeam(decoded.parts);
+    const team = await owner.getTeam(parts);
     if (!team) return null;
+    registerFromProviderTeam(
+      team,
+      owner.id,
+      resolved.entity?.leagueCodes?.[0] ?? null,
+    );
     const fetchedAt = cache.set(cacheKey, team, CACHE_TTL.TEAM_INFO);
     return { data: team, source: owner.id, stale: false, fetchedAt };
   } catch (err) {
@@ -321,18 +357,23 @@ export async function getTeamMatches(
   teamId: string,
   kind: 'recent' | 'upcoming',
 ): Promise<DataResult<UnifiedMatch[]>> {
-  const decoded = decodeEntityId(teamId);
-  if (!decoded) return { data: [], source: 'none', stale: false, fetchedAt: new Date().toISOString() };
-  const owner = getProviderById(decoded.provider);
+  const resolved = await resolveTeamRoute(teamId);
+  if (!resolved || !resolved.provider) {
+    return { data: [], source: 'none', stale: false, fetchedAt: new Date().toISOString() };
+  }
+  const { provider, parts } = resolved.provider;
+  const owner = getProviderById(provider);
   if (!owner) return { data: [], source: 'none', stale: false, fetchedAt: new Date().toISOString() };
   const ttl = kind === 'recent' ? CACHE_TTL.RESULTS : CACHE_TTL.UPCOMING;
-  const cacheKey = `teamMatches:${teamId}:${kind}`;
+  const cacheKey = `teamMatches:${resolved.entity.id}:${kind}`;
   const cached = cache.get<UnifiedMatch[]>(cacheKey);
   if (cached && !cached.stale) {
     return { data: cached.value, source: 'cache', stale: false, fetchedAt: cached.fetchedAt };
   }
   try {
-    const matches = await owner.getTeamMatches(decoded.parts, kind);
+    const fetchedMatches = await owner.getTeamMatches(parts, kind);
+    const matches = reconcileMatchBatch(fetchedMatches, owner.id);
+    registerFromMatches(matches, owner.id);
     const fetchedAt = cache.set(cacheKey, matches, ttl);
     return { data: matches, source: owner.id, stale: false, fetchedAt };
   } catch {
@@ -343,57 +384,37 @@ export async function getTeamMatches(
 }
 
 // --------------------------------------------------------------- search ----
+/**
+ * Legacy entry point kept for API compatibility: it now delegates to the
+ * entity-aware unified search and returns the same `SearchHit[]` shape it always
+ * returned, so `/api/search` clients and the type-ahead box are untouched.
+ */
 export async function search(query: string): Promise<DataResult<SearchHit[]>> {
-  const q = query.trim();
-  if (q.length < 2) return { data: [], source: 'none', stale: false, fetchedAt: new Date().toISOString() };
-
-  // Normalised cache key: "الأهلى" and "الأهلي" share one provider call.
-  const key = `search:${normalizeText(q)}`;
-  return cachedCall<SearchHit[]>(key, CACHE_TTL.SEARCH, 'searchTeams', async (p) => {
-    // Arabic aliases expand to the Latin names providers index (الأهلي → Al Ahly),
-    // and every provider hit is checked against the user's own spelling so a
-    // fuzzy upstream match can never push an unrelated club to the top.
-    const queries = expandQuery(q);
-    const settled = await Promise.allSettled(queries.slice(0, 3).map((qq) => p.searchTeams(qq)));
-    const seen = new Set<string>();
-    const collected: UnifiedTeam[] = [];
-    for (const r of settled) {
-      if (r.status !== 'fulfilled') continue;
-      for (const t of r.value) {
-        if (seen.has(t.id)) continue;
-        seen.add(t.id);
-        collected.push(t);
-      }
-    }
-    const relevant = collected.filter((t) => matchesQuery(t.name, q));
-    // Never return nothing because our relevance filter was stricter than the
-    // provider's own matching — fall back to the upstream ordering.
-    const teams = (relevant.length > 0 ? relevant : collected).slice(0, 12);
-
-    const leagueHits: LeagueSearchHit[] = ALL_LEAGUES.filter(
-      (l) =>
-        matchesQuery(l.nameEn, q) ||
-        matchesQuery(l.nameAr, q) ||
-        matchesQuery(l.country, q) ||
-        matchesQuery(l.countryAr, q),
-    ).map((l) => ({
-      kind: 'league',
-      id: leagueEntityId(l),
-      code: l.fdCode,
-      name: l.nameEn,
-      emblem: l.emblem,
-      country: l.country,
-    }));
-    const teamHits: TeamSearchHit[] = teams.map((t) => ({
-      kind: 'team',
-      id: t.id,
-      name: t.name,
-      crest: t.crest,
-      league: t.leagueCode,
-      country: t.country,
-    }));
-    return [...leagueHits, ...teamHits].slice(0, 15);
-  });
+  const unified = await searchUnified(query);
+  const hits: SearchHit[] = [
+    ...unified.data.leagues.map((league) => ({
+      kind: 'league' as const,
+      id: league.id,
+      code: league.code,
+      name: league.name,
+      emblem: league.emblem,
+      country: league.country,
+    })),
+    ...unified.data.teams.map((team) => ({
+      kind: 'team' as const,
+      id: team.id,
+      name: team.name,
+      crest: team.crest,
+      league: team.league,
+      country: team.country,
+    })),
+  ].slice(0, 15);
+  return {
+    data: hits,
+    source: unified.source,
+    stale: unified.stale,
+    fetchedAt: unified.fetchedAt,
+  };
 }
 
 export { CACHE_TTL, getOrSet };

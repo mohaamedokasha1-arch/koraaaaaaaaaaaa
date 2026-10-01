@@ -3,8 +3,12 @@ import type { Dictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { ALL_LEAGUES } from '@/lib/constants';
 import { Logo } from './logo';
+import { TimezoneSelect } from './timezone-select';
+import { getUserTimeZone } from '@/lib/time';
 
-export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
+export async function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
+  // Times are stored in UTC and rendered in the viewer's own zone.
+  const tz = await getUserTimeZone();
   const sections = [
     { href: `/${locale}/live`, label: dict.nav.live },
     { href: `/${locale}/today`, label: dict.nav.today },
@@ -54,9 +58,13 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
         </nav>
       </div>
       <div className="relative border-t border-navy-700/60 py-4">
-        <p className="container-page text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} {dict.site.name} — {dict.footer.rights}
-        </p>
+        <div className="container-page flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <p className="text-center text-xs text-slate-500 sm:text-start">
+            © {new Date().getFullYear()} {dict.site.name} — {dict.footer.rights}
+          </p>
+          {/* Viewer timezone: stored UTC everywhere, rendered in the reader's zone. */}
+          <TimezoneSelect current={tz} locale={locale} />
+        </div>
       </div>
     </footer>
   );
