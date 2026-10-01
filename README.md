@@ -218,6 +218,8 @@ public-display terms).
 
 ## Documentation
 
+Official broadcast centre: [operating guide](docs/live/README.md) · [follow-up fixes and verified gates](docs/live/FOLLOW-UP.md). `/live` enters the centre while existing locale-prefixed live-score routes stay unchanged.
+
 | File | Contents |
 |---|---|
 | `docs/AUDIT.md` | Phase 0 read-only audit + baseline (stack, routes, providers, coverage matrix, SEO state, risks) |

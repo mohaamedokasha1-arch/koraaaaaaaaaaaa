@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyYouTubeMetadata, channelForSlot, mergeDiscoveries, scorebatEmbedFromApi, youtubeCandidate, YOUTUBE_DAILY_SCHEDULED_SEARCHES, YOUTUBE_SEARCH_COST } from '../src/features/live/lib/discovery.ts';
+import { applyYouTubeMetadata, channelForSlot, mergeDiscoveries, scorebatEmbedFromApi, youtubeCandidate, YOUTUBE_DAILY_SCHEDULED_SEARCHES, YOUTUBE_SEARCH_COST, youtubeMetadataBatch, YOUTUBE_METADATA_BATCH_SIZE, YOUTUBE_SEARCH_RESULTS } from '../src/features/live/lib/discovery.ts';
 
 const channel = { id: 'UCabcdefghijklmnopqrstuv', name: 'Test official channel', enabled: true };
 const now = '2026-10-01T19:00:00Z';
@@ -41,4 +41,40 @@ test('candidate merging deduplicates, expires seven-day-old entries and caps out
   assert.equal(mergeDiscoveries([old, candidate], [candidate], Date.parse(now)).length, 1);
   const many = Array.from({ length: 400 }, (_, index) => ({ ...candidate, sourceRef: String(index) }));
   assert.equal(mergeDiscoveries([], many, Date.parse(now)).length, 300);
+});
+
+test('metadata batching reserves room for fresh live discoveries, deduplicates and stays within one API request', () => {
+  const linked = Array.from({ length: 125 }, (_, index) => `video${String(index).padStart(6, '0')}`);
+  const live = Array.from({ length: 10 }, (_, index) => `newid${String(index).padStart(6, '0')}`);
+  const batch = youtubeMetadataBatch([...linked, linked[0]], [...live, live[0]], 4, Date.parse(now));
+  assert.equal(batch.length, YOUTUBE_METADATA_BATCH_SIZE);
+  assert.equal(new Set(batch).size, batch.length);
+  assert.deepEqual(batch.slice(0, live.length), live);
+  assert.equal(batch.filter((id) => linked.includes(id)).length, 40);
+  assert.deepEqual(youtubeMetadataBatch([linked[0], linked[0], live[0]], [live[0]], 1, Date.parse(now)), [live[0], linked[0]]);
+  assert.deepEqual(youtubeMetadataBatch([], [], 0, Date.parse(now)), []);
+});
+
+test('every linked video is eventually checked, including channel counts that divide 96 slots', () => {
+  const linked = Array.from({ length: 125 }, (_, index) => `video${String(index).padStart(6, '0')}`);
+  const live = Array.from({ length: YOUTUBE_SEARCH_RESULTS }, (_, index) => `newid${String(index).padStart(6, '0')}`);
+  const visits = Math.ceil(linked.length / (YOUTUBE_METADATA_BATCH_SIZE - live.length));
+  for (const channelCount of [1, 2, 4, 12, 96]) {
+    const checked = new Set();
+    for (let visit = 0; visit < visits; visit++) {
+      const at = Date.parse(now) + visit * channelCount * 15 * 60 * 1000;
+      const batch = youtubeMetadataBatch(linked, live, channelCount, at);
+      assert.equal(batch.length, 50);
+      for (const id of batch) checked.add(id);
+      assert.deepEqual(batch, youtubeMetadataBatch(linked, live, channelCount, at), 'same slot is deterministic');
+    }
+    for (const id of linked) assert.equal(checked.has(id), true, `${channelCount} channels: ${id}`);
+  }
+});
+
+test('discovery ordering compares instants rather than ISO strings with different offsets', () => {
+  const candidate = youtubeCandidate(video, channel, now);
+  const earlier = { ...candidate, sourceRef: 'earlyVideo1', discoveredAt: '2026-10-01T20:00:00+03:00' };
+  const later = { ...candidate, sourceRef: 'laterVideo1', discoveredAt: '2026-10-01T18:00:00Z' };
+  assert.deepEqual(mergeDiscoveries([earlier, later], [], Date.parse(now)).map((item) => item.sourceRef), ['laterVideo1', 'earlyVideo1']);
 });

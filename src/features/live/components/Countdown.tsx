@@ -1,27 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import type { Locale } from '@/i18n/locales';
 import type { LiveMatch } from '../types/index.ts';
 import { getLiveCopy } from '../lib/copy.ts';
 import { matchCalendar } from '../lib/calendar.ts';
+import { useLiveClock } from '../hooks/useLiveClock';
 import { LiveIcon } from './LiveIcon';
 
 export function Countdown({ match, locale, compact = false }: { match: LiveMatch; locale: Locale; compact?: boolean }) {
-  const [now, setNow] = useState<number | null>(null);
+  const now = useLiveClock(null, 'countdown');
   const t = getLiveCopy(locale);
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
-    const sync = () => {
-      if (timer) clearInterval(timer);
-      timer = undefined;
-      if (document.visibilityState !== 'visible') return;
-      setNow(Date.now());
-      timer = setInterval(() => setNow(Date.now()), 1000);
-    };
-    sync(); document.addEventListener('visibilitychange', sync);
-    return () => { if (timer) clearInterval(timer); document.removeEventListener('visibilitychange', sync); };
-  }, []);
   const seconds = now === null ? null : Math.max(0, Math.floor((Date.parse(match.startsAt) - now) / 1000));
   const duration = seconds === null ? '––:––:––' : [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map((value) => String(value).padStart(2, '0')).join(':');
   function download() {

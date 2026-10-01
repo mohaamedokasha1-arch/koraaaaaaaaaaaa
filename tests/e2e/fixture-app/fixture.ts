@@ -25,6 +25,8 @@ export function makeFixture(mode = 'youtube'): LiveCatalog {
   // The mock hls.js performs NO network request and injects two fatal errors.
   // This host is deliberately NOT publishable under the default live policy.
   if (mode === 'hls') catalog.streams[0] = { ...first, provider: 'hls', sourceRef: 'https://test.invalid/test.m3u8' };
+  if (mode === 'temporary') catalog.streams = catalog.streams.map((stream) => ({ ...stream, hiddenUntil: '2026-10-01T19:01:00Z' }));
+  if (mode === 'expiring') catalog.streams = catalog.streams.map((stream) => ({ ...stream, endsAt: '2026-10-01T19:01:00Z' }));
   if (mode === 'empty' || mode === 'scheduled') catalog.streams = [];
   if (mode === 'external') catalog.streams = [{ ...first, provider: 'external', sourceRef: 'https://www.beinsports.com/', label: 'Reviewed test broadcaster' }];
   if (mode === 'scheduled') catalog.matches[0] = { ...testMatch, status: 'scheduled', startsAt: '2099-01-01T18:00:00Z' };

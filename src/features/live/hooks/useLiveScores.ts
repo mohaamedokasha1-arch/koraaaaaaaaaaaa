@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { array as zArray, boolean as zBoolean, enum as zEnum, number as zNumber, object as zObject, string as zString } from 'zod';
 import type { z } from 'zod';
 import { LIVE_ENABLED, LIVE_POLL_MS } from '../lib/config.ts';
+import { pauseLiveRefresh, retryLiveRequest } from '../lib/polling.ts';
 
 const team = zObject({ id: zString(), name: zString() });
 const scoreMatch = zObject({
@@ -31,16 +32,19 @@ async function fetchScores(url: string) {
 export function useLiveScores(matchId: string, enabled: boolean) {
   const { data, error, mutate } = useSWR(LIVE_ENABLED && enabled ? '/api/matches/live' : null, fetchScores, {
     refreshInterval: LIVE_POLL_MS,
+    isPaused: pauseLiveRefresh,
+    onErrorRetry: retryLiveRequest,
     refreshWhenHidden: false,
     refreshWhenOffline: false,
     revalidateOnFocus: false,
+    revalidateOnReconnect: true,
     dedupingInterval: 15_000,
     errorRetryCount: 1,
     errorRetryInterval: LIVE_POLL_MS,
     keepPreviousData: true,
   });
   useEffect(() => {
-    const visible = () => { if (enabled && document.visibilityState === 'visible') void mutate(); };
+    const visible = () => { if (LIVE_ENABLED && enabled && !pauseLiveRefresh()) void mutate(); };
     document.addEventListener('visibilitychange', visible);
     return () => document.removeEventListener('visibilitychange', visible);
   }, [enabled, mutate]);

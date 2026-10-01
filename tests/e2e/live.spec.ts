@@ -1,10 +1,11 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type Route } from '@playwright/test';
 import { makeFixture } from './fixture-app/fixture';
 
 const fixtureUrl = 'http://127.0.0.1:3101';
 
 async function prepare(page: Page, mode = 'youtube', allFail = false) {
   const catalog = makeFixture(mode);
+  const scheduled = catalog.matches[0].status === 'scheduled';
   if (mode === 'hls') await page.addInitScript(() => {
     // Exercise hls.js even on Chromium releases with native HLS support.
     const native = HTMLMediaElement.prototype.canPlayType;
@@ -12,9 +13,9 @@ async function prepare(page: Page, mode = 'youtube', allFail = false) {
   });
   await page.route('**/live/catalog.json', (route) => route.fulfill({ json: catalog }));
   await page.route('**/api/matches/live', (route) => route.fulfill({ json: { matches: [{
-    id: 'test~fixture', status: 'live', minute: 30,
+    id: 'test~fixture', status: scheduled ? 'scheduled' : 'live', minute: scheduled ? null : 30,
     home: { id: 'test~home', name: 'Test home' }, away: { id: 'test~away', name: 'Test away' },
-    score: { home: 1, away: 0 }, events: [{ type: 'goal', minute: 20, extraMinute: null, teamId: 'test~home', player: 'Test player', assist: null, playerIn: null, playerOut: null }],
+    score: { home: scheduled ? null : 1, away: scheduled ? null : 0 }, events: scheduled ? [] : [{ type: 'goal', minute: 20, extraMinute: null, teamId: 'test~home', player: 'Test player', assist: null, playerIn: null, playerOut: null }],
   }], stale: false, fetchedAt: '2026-10-01T19:00:00Z' } }));
   await page.route('**/api/live/report', (route) => route.fulfill({ status: 503, json: { error: 'reporting_not_configured' } }));
   await page.route('https://www.youtube-nocookie.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Test provider</title>' }));
@@ -154,4 +155,98 @@ test('broadcast display follows the existing zone cookie while calendar timestam
   await expect(page.locator('time')).toContainText('18:00');
   await page.evaluate(() => { document.cookie = 'KORA_TZ=Asia%2FDubai; path=/'; window.dispatchEvent(new Event('kora:timezone-change')); });
   await expect(page.locator('time')).toContainText('22:00');
+});
+
+
+test('temporary source suppression expires with unchanged JSON, restoring the player and score-card watch link', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-01T19:00:00Z') });
+  await prepare(page, 'temporary'); await page.goto(`${fixtureUrl}/?mode=temporary`);
+  await expect(page.getByTestId('existing-score-card').getByRole('link', { name: 'Watch', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('load-player')).toHaveCount(0);
+  await page.clock.fastForward(65_000);
+  await expect(page.getByTestId('load-player')).toBeVisible();
+  await expect(page.getByTestId('existing-score-card').getByRole('link', { name: 'Watch', exact: true })).toBeVisible();
+});
+
+test('hub source counts advance without a changed catalogue or a reload', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-01T19:00:00Z') });
+  const catalog = makeFixture('temporary');
+  await page.route('**/live/catalog.json', (route) => route.fulfill({ json: catalog }));
+  await page.goto('/en/watch');
+  await expect(page.locator('article')).toHaveCount(1);
+  await expect(page.locator('article')).toContainText('0 Broadcast sources');
+  await page.clock.fastForward(65_000);
+  await expect(page.locator('article')).toContainText('2 Broadcast sources');
+});
+
+test('elapsed source end times unmount playback and remove expired watch links with unchanged JSON', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-01T19:00:00Z') });
+  await prepare(page, 'expiring'); await page.goto(`${fixtureUrl}/?mode=expiring`);
+  await page.getByTestId('load-player').click();
+  await expect(page.getByRole('button', { name: /Test source two/ })).toContainText('Playback confirmed');
+  await expect(page.getByTestId('existing-score-card').getByRole('link', { name: 'Watch', exact: true })).toBeVisible();
+  await page.clock.fastForward(65_000);
+  await expect(page.getByTestId('stream-player')).toHaveCount(0);
+  await expect(page.locator('iframe, video')).toHaveCount(0);
+  await expect(page.getByTestId('existing-score-card').getByRole('link', { name: 'Watch', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Watch on the official platform' })).toHaveCount(0);
+});
+
+test('error retries do not fetch in hidden or offline tabs; visibility and reconnect resume reads', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-01T19:00:00Z') });
+  await prepare(page);
+  let reads = 0;
+  const failRead = (route: Route) => { reads++; return route.fulfill({ status: 503, json: { error: 'Synthetic test outage' } }); };
+  await page.route('**/live/catalog.json', failRead);
+  await page.route('**/api/matches/live', failRead);
+  await page.goto(fixtureUrl);
+  await expect(page.getByText('The broadcast catalogue could not be refreshed. Showing the last available catalogue.')).toBeVisible();
+  const beforeHidden = reads;
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.clock.fastForward(180_000); expect(reads).toBe(beforeHidden);
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+  await expect.poll(() => reads).toBeGreaterThan(beforeHidden);
+  await page.evaluate(() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); window.dispatchEvent(new Event('offline')); });
+  const beforeOffline = reads;
+  await page.clock.fastForward(180_000); expect(reads).toBe(beforeOffline);
+  await page.evaluate(() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true }); window.dispatchEvent(new Event('online')); });
+  await expect.poll(() => reads).toBeGreaterThan(beforeOffline);
+});
+
+test('a malformed HTTP 200 report response never claims that a report was received', async ({ page }) => {
+  await prepare(page);
+  await page.route('**/api/live/report', (route) => route.fulfill({ json: { accepted: false, duplicate: false } }));
+  await page.goto(fixtureUrl); await page.getByTestId('load-player').click();
+  await expect(page.getByRole('button', { name: /Test source two/ })).toContainText('Playback confirmed');
+  await page.getByRole('button', { name: 'Report a problem' }).click();
+  await expect(page.getByText('The report could not be sent. Please try again later.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Report received' })).toHaveCount(0);
+});
+
+
+test('a confirmed live score suppresses an outdated scheduled countdown without inventing a stream', async ({ page }) => {
+  await prepare(page, 'scheduled');
+  await page.route('**/api/matches/live', (route) => route.fulfill({ json: { matches: [{
+    id: 'test~fixture', status: 'live', minute: 5,
+    home: { id: 'test~home', name: 'Test home' }, away: { id: 'test~away', name: 'Test away' },
+    score: { home: 0, away: 0 }, events: [],
+  }], stale: false, fetchedAt: '2026-10-01T19:00:00Z' } }));
+  await page.goto(`${fixtureUrl}/?mode=scheduled`);
+  await expect(page.getByText('Live now · 5′')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remind me · add to calendar' })).toHaveCount(0);
+  await expect(page.getByTestId('load-player')).toHaveCount(0);
+});
+
+
+test('hub fixtures are ordered by actual kickoff time, not the text of different UTC offsets', async ({ page }) => {
+  const catalog = makeFixture('scheduled');
+  catalog.matches = [
+    { ...catalog.matches[0], matchId: 'test~later', home: { id: 'test~late', name: 'Later kickoff', crest: null }, startsAt: '2026-10-01T18:00:00Z' },
+    { ...catalog.matches[0], matchId: 'test~earlier', home: { id: 'test~early', name: 'Earlier kickoff', crest: null }, startsAt: '2026-10-01T20:00:00+03:00' },
+  ];
+  await page.route('**/live/catalog.json', (route) => route.fulfill({ json: catalog }));
+  await page.goto('/en/watch');
+  await expect(page.locator('article')).toHaveCount(2);
+  await expect(page.locator('article').first()).toContainText('Earlier kickoff');
+  await expect(page.locator('article').nth(1)).toContainText('Later kickoff');
 });
