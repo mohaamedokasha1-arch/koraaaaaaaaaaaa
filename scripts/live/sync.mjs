@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { liveCatalogSchema, officialChannelsSchema } from '../../src/features/live/types/index.ts';
 import { discoveriesSchema, scorebatFeedSchema, youtubeSearchSchema, youtubeVideosSchema } from '../../src/features/live/types/discovery.ts';
-import { applyYouTubeMetadata, channelForSlot, mergeDiscoveries, scorebatEmbedFromApi, youtubeCandidate } from '../../src/features/live/lib/discovery.ts';
+import { applyYouTubeMetadata, channelForSlot, mergeDiscoveries, scorebatEmbedFromApi, youtubeCandidate, youtubeMetadataBatch, YOUTUBE_SEARCH_RESULTS } from '../../src/features/live/lib/discovery.ts';
 import { catalogChannelIssues } from '../../src/features/live/lib/whitelist.ts';
 
 const root = new URL('../../', import.meta.url);
@@ -71,9 +71,9 @@ try {
       permitted = limit.allowed === true;
     }
     if (permitted) {
-      const search = await youtube('search', { part: 'snippet', channelId: channel.id, type: 'video', eventType: 'live', maxResults: '10' }, youtubeSearchSchema);
+      const search = await youtube('search', { part: 'snippet', channelId: channel.id, type: 'video', eventType: 'live', maxResults: String(YOUTUBE_SEARCH_RESULTS) }, youtubeSearchSchema);
       const linked = catalog.streams.filter((stream) => stream.provider === 'youtube' && stream.channelId === channel.id && stream.status !== 'ended').map((stream) => stream.sourceRef);
-      const ids = [...new Set([...linked, ...search.items.map((item) => item.id.videoId)])].slice(0, 50);
+      const ids = youtubeMetadataBatch(linked, search.items.map((item) => item.id.videoId), channels.filter((item) => item.enabled).length, now.getTime());
       if (ids.length) {
         const details = await youtube('videos', { part: 'snippet,status,liveStreamingDetails', id: ids.join(',') }, youtubeVideosSchema);
         catalog = applyYouTubeMetadata(catalog, details.items, ids, channels, now.toISOString());

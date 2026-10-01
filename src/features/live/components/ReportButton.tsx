@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Locale } from '@/i18n/locales';
 import { LIVE_ENABLED } from '../lib/config.ts';
+import { reportReceiptSchema } from '../types/index.ts';
 import { getLiveCopy } from '../lib/copy.ts';
 import { LiveIcon } from './LiveIcon';
 
@@ -18,7 +19,10 @@ export function ReportButton({ matchId, streamId, locale }: { matchId: string; s
       if (response.status === 503) setState('unavailable');
       else if (response.status === 429) setState('rate');
       else if (!response.ok) setState('error');
-      else setState('done');
+      else {
+        reportReceiptSchema.parse(await response.json());
+        setState('done');
+      }
     } catch { setState('error'); }
   }
   return <div><button type="button" className="btn-ghost !text-xs" onClick={report} disabled={state === 'sending' || state === 'done'}><LiveIcon name={state === 'done' ? 'check' : 'report'} className="h-4 w-4" />{state === 'sending' ? t.reporting : state === 'done' ? t.reported : t.report}</button>

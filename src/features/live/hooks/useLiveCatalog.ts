@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { catalogRowsSchema, liveCatalogSchema, type LiveCatalog } from '../types/index.ts';
 import { LIVE_ENABLED, LIVE_POLL_MS, publicLiveStore } from '../lib/config.ts';
+import { pauseLiveRefresh, retryLiveRequest } from '../lib/polling.ts';
 
 const store = publicLiveStore();
 const url = store ? `${store.url}/rest/v1/live_catalog?id=eq.primary&select=document` : '/live/catalog.json';
@@ -27,6 +28,8 @@ export function useLiveCatalog(initial: LiveCatalog, initialStale = false) {
   const result = useSWR<LiveCatalog>(LIVE_ENABLED ? ['live-catalog', url] : null, fetchCatalog, {
     fallbackData: initial,
     refreshInterval: LIVE_POLL_MS,
+    isPaused: pauseLiveRefresh,
+    onErrorRetry: retryLiveRequest,
     refreshWhenHidden: false,
     refreshWhenOffline: false,
     revalidateOnFocus: false,
@@ -39,7 +42,7 @@ export function useLiveCatalog(initial: LiveCatalog, initialStale = false) {
   });
   const { mutate } = result;
   useEffect(() => {
-    const visible = () => { if (LIVE_ENABLED && document.visibilityState === 'visible') void mutate(); };
+    const visible = () => { if (LIVE_ENABLED && !pauseLiveRefresh()) void mutate(); };
     document.addEventListener('visibilitychange', visible);
     return () => document.removeEventListener('visibilitychange', visible);
   }, [mutate]);

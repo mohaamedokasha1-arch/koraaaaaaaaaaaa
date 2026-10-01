@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { zoneLabel } from '@/lib/pure/time';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { Locale } from '@/i18n/locales';
 import { TeamLogo } from '@/components/team-logo';
 import type { LiveCatalog, LiveMatch } from '../types/index.ts';
 import { getLiveCopy } from '../lib/copy.ts';
-import { broadcastersForMatch, isStreamVisible, playableStreams, streamsForMatch } from '../lib/catalog.ts';
+import { broadcastersForMatch, coverageStreams, playableStreams } from '../lib/catalog.ts';
 import { useLiveCatalog } from '../hooks/useLiveCatalog';
+import { useLiveClock } from '../hooks/useLiveClock';
 import { useLiveScores } from '../hooks/useLiveScores';
 import { useLiveTimezone } from '../hooks/useLiveTimezone';
 import { Countdown } from './Countdown';
@@ -24,15 +25,10 @@ export function LiveMatchView({ initial, initialMatch, locale, renderedAt, initi
   const publishedMatch = catalog.matches.find((match) => match.matchId === initialMatch.matchId);
   const match = publishedMatch ?? initialMatch;
   const { score, stale: scoreStale } = useLiveScores(match.matchId, Boolean(publishedMatch) && match.status !== 'ended');
-  const [now, setNow] = useState(renderedAt);
-  useEffect(() => {
-    const tick = () => { if (document.visibilityState === 'visible') setNow(Date.now()); };
-    tick(); const timer = setInterval(tick, 30_000); document.addEventListener('visibilitychange', tick);
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
-  }, []);
+  const now = useLiveClock(renderedAt) ?? renderedAt;
   const available = useMemo(() => publishedMatch ? playableStreams(catalog, match, now) : [], [catalog, match, now, publishedMatch]);
   const broadcasters = useMemo(() => publishedMatch ? broadcastersForMatch(catalog, match) : [], [catalog, match, publishedMatch]);
-  const external = useMemo(() => publishedMatch ? streamsForMatch(catalog, match.matchId).filter((stream) => isStreamVisible(stream, now)) : [], [catalog, match.matchId, now, publishedMatch]);
+  const external = useMemo(() => publishedMatch ? coverageStreams(catalog, match, now) : [], [catalog, match, now, publishedMatch]);
   const t = getLiveCopy(locale);
   const timeZone = useLiveTimezone();
   const status = match.status === 'ended' ? 'finished' : score?.status ?? match.status;
@@ -58,7 +54,7 @@ export function LiveMatchView({ initial, initialMatch, locale, renderedAt, initi
     </header>
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-6">
-        {match.status === 'scheduled' && <Countdown match={match} locale={locale} />}
+        {status === 'scheduled' && <Countdown match={match} locale={locale} />}
         {available.length ? <PlayerLoader key={match.matchId} matchId={match.matchId} streams={available} broadcasters={broadcasters} externalStreams={external} title={title} locale={locale} /> : <div className="card flex aspect-video flex-col items-center justify-center gap-3 px-5 text-center"><LiveIcon name="tv" className="h-8 w-8 text-slate-400" /><h2 className="text-sm font-bold text-white sm:text-lg">{match.status === 'ended' ? t.highlights : t.noSource}</h2><p className="max-w-md text-xs leading-6 text-slate-400 sm:text-sm">{match.status === 'ended' ? t.finishedBody : t.noSourceBody}</p></div>}
         <MatchTabs match={match} score={score} locale={locale} />
       </div>

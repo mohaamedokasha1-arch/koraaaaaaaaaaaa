@@ -2,7 +2,14 @@ import { array as zArray, boolean as zBoolean, enum as zEnum, literal as zLitera
 import type { z } from 'zod';
 import { approvedUrl, isTwitchChannel, isYouTubeId, livePolicy, scorebatUrl, secureUrl } from '../lib/policy.mjs';
 
-export const liveIdSchema = zString().min(1).max(120).regex(/^[a-zA-Z0-9_~.:-]+$/);
+export const liveIdSchema = zString().min(1).max(120).regex(/^[a-zA-Z0-9_~.:-]+$/)
+  .refine((value) => value !== '.' && value !== '..', 'Dot segments are not valid identifiers');
+// These segments are actual pages beside /watch/[matchId]. Do not publish a
+// fixture whose watch link would open an admin/legal page instead of a match.
+const reservedMatchIds = new Set(['admin', 'copyright', 'disclaimer']);
+export const liveMatchIdSchema = liveIdSchema.refine(
+  (value) => !reservedMatchIds.has(value.toLowerCase()), 'This match id is reserved by the broadcast routes',
+);
 const text = zString().trim().min(1).max(180);
 const instant = zString().datetime({ offset: true });
 const httpsUrl = zString().max(2048).refine((value) => Boolean(secureUrl(value)), 'A public HTTPS URL is required');
@@ -24,7 +31,7 @@ const teamSchema = zObject({
 
 /** A read-only fixture reference, not a replacement for the scores data model. */
 export const liveMatchSchema = zObject({
-  matchId: liveIdSchema,
+  matchId: liveMatchIdSchema,
   home: teamSchema,
   away: teamSchema,
   competition: zObject({ id: liveIdSchema, name: text, code: liveIdSchema.nullable().default(null) }).strict(),
@@ -38,7 +45,7 @@ export const liveMatchSchema = zObject({
 
 export const streamSchema = zObject({
   id: liveIdSchema,
-  matchId: liveIdSchema,
+  matchId: liveMatchIdSchema,
   label: text,
   provider: zEnum(['youtube', 'twitch', 'hls', 'iframe', 'external', 'highlights']),
   sourceRef: zString().min(1).max(2048),
@@ -118,7 +125,8 @@ export const officialChannelsSchema = zArray(zObject({
   if (new Set(channels.map((channel) => channel.id)).size !== channels.length) ctx.addIssue({ code: 'custom', message: 'Duplicate channel ids' });
 });
 
-export const reportSchema = zObject({ matchId: liveIdSchema, streamId: liveIdSchema }).strict();
+export const reportSchema = zObject({ matchId: liveMatchIdSchema, streamId: liveIdSchema }).strict();
+export const reportReceiptSchema = zObject({ accepted: zLiteral(true), duplicate: zBoolean() }).strict();
 export const catalogRowsSchema = zArray(zObject({ document: liveCatalogSchema })).max(1);
 
 export type LiveCatalog = z.infer<typeof liveCatalogSchema>;

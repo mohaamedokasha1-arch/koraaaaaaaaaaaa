@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { emptyCatalog, liveCatalogSchema, liveMatchSchema, streamSchema, reportSchema } from '../src/features/live/types/index.ts';
-import { hasMatchCoverage, playableStreams } from '../src/features/live/lib/catalog.ts';
+import { emptyCatalog, liveCatalogSchema, liveMatchSchema, streamSchema, reportSchema, liveIdSchema, liveMatchIdSchema, reportReceiptSchema } from '../src/features/live/types/index.ts';
+import { coverageStreams, hasMatchCoverage, playableStreams } from '../src/features/live/lib/catalog.ts';
 
 export const fixture = () => ({
   matchId: 'fd~42', home: { id: 'fd~1', name: 'Home', crest: null }, away: { id: 'fd~2', name: 'Away', crest: null },
@@ -57,4 +57,60 @@ test('elapsed kickoffs never invent live streams; hidden and failed sources are 
   assert.equal(hasMatchCoverage(catalog, match.matchId, now), true);
   const ended = { ...match, status: 'ended' };
   assert.equal(playableStreams(catalog, ended, now).length, 0);
+});
+
+test('match IDs cannot escape or collide with watch routes; provider-qualified IDs stay opaque', () => {
+  for (const id of ['.', '..', 'admin', 'copyright', 'disclaimer', 'ADMIN']) {
+    assert.equal(liveMatchIdSchema.safeParse(id).success, false, id);
+    assert.equal(liveMatchSchema.safeParse({ ...fixture(), matchId: id }).success, false, id);
+    assert.equal(streamSchema.safeParse({ ...source(), matchId: id }).success, false, id);
+    assert.equal(reportSchema.safeParse({ matchId: id, streamId: 'one' }).success, false, id);
+  }
+  for (const id of ['fd~42', 'af~42', 'tsdb~42', '__proto__', 'match.42']) {
+    assert.equal(liveMatchIdSchema.safeParse(id).success, true, id);
+    assert.equal(new URL(`/ar/watch/${encodeURIComponent(id)}`, 'https://site.example').pathname,
+      `/ar/watch/${encodeURIComponent(id)}`);
+  }
+  assert.equal(liveIdSchema.safeParse('admin').success, true, 'non-match IDs need not reserve page names');
+});
+
+test('watch links and source counts exclude ended, expired and not-yet-live video sources', () => {
+  const now = Date.parse('2026-10-01T19:00:00Z');
+  const match = fixture();
+  for (const change of [
+    { status: 'ended' }, { status: 'failed' }, { endsAt: '2026-10-01T19:00:00Z' },
+    { startsAt: '2026-10-01T20:00:00Z' }, { hiddenUntil: '2026-10-01T19:01:00Z' },
+  ]) {
+    const catalog = { ...emptyCatalog(), matches: [match], streams: [{ ...source(), ...change }] };
+    assert.equal(coverageStreams(catalog, match, now).length, 0, JSON.stringify(change));
+    assert.equal(playableStreams(catalog, match, now).length, 0, JSON.stringify(change));
+    assert.equal(hasMatchCoverage(catalog, match.matchId, now), false, JSON.stringify(change));
+  }
+  const pending = { ...emptyCatalog(), matches: [match], streams: [{ ...source(), status: 'scheduled', startsAt: '2026-10-01T20:00:00Z' }] };
+  assert.equal(hasMatchCoverage(pending, match.matchId, now), true, 'a reviewed upcoming source can have a watch page');
+  assert.equal(playableStreams(pending, match, now).length, 0, 'scheduled is never assumed live');
+  const hidden = { ...pending, streams: [{ ...source(), hiddenUntil: '2026-10-01T19:00:00Z' }] };
+  assert.equal(coverageStreams(hidden, match, now).length, 1, 'temporary suppression expires at its boundary');
+});
+
+test('finished matches offer explicitly licensed highlights or external coverage, not ended live videos', () => {
+  const now = Date.parse('2026-10-01T20:00:00Z');
+  const match = { ...fixture(), status: 'ended' };
+  const catalog = { ...emptyCatalog(), matches: [match], streams: [{ ...source(), status: 'ended' }] };
+  assert.equal(hasMatchCoverage(catalog, match.matchId, now), false);
+  const highlights = { ...catalog, streams: [streamSchema.parse({ ...source(), provider: 'highlights', embedProvider: 'youtube', status: 'ended', endsAt: '2026-10-01T19:00:00Z' })] };
+  assert.equal(playableStreams(highlights, match, now).length, 1, 'video end is not the expiry of a reviewed replay');
+  const external = { ...catalog, streams: [{ ...source(), provider: 'external', sourceRef: 'https://www.beinsports.com/', status: 'ended' }] };
+  assert.equal(hasMatchCoverage(external, match.matchId, now), true);
+  assert.equal(playableStreams(external, match, now).length, 0);
+  const broadcaster = { ...catalog, broadcasters: [{ competitionIds: ['PL'] }] };
+  assert.equal(hasMatchCoverage(broadcaster, match.matchId, now), true);
+});
+
+test('a report receipt needs an explicit accepted acknowledgement, not only an HTTP 200', () => {
+  assert.equal(reportReceiptSchema.safeParse({ accepted: true, duplicate: false }).success, true);
+  assert.equal(reportReceiptSchema.safeParse({ accepted: true, duplicate: true }).success, true);
+  for (const response of [{}, { accepted: false }, { accepted: true }, { accepted: 'true', duplicate: false }, '<html>Not an acknowledgement</html>']) {
+    assert.equal(reportReceiptSchema.safeParse(response).success, false);
+  }
 });

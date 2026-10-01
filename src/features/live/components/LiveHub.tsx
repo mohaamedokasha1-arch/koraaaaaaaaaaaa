@@ -1,19 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Locale } from '@/i18n/locales';
 import type { LiveCatalog } from '../types/index.ts';
 import { getLiveCopy } from '../lib/copy.ts';
-import { isStreamVisible } from '../lib/catalog.ts';
+import { coverageStreams } from '../lib/catalog.ts';
 import { useLiveCatalog } from '../hooks/useLiveCatalog';
+import { useLiveClock } from '../hooks/useLiveClock';
 import { LiveMatchCard } from './LiveMatchCard';
 import { LiveIcon } from './LiveIcon';
 
-export function LiveHub({ initial, locale, initialStale }: { initial: LiveCatalog; locale: Locale; initialStale: boolean }) {
+export function LiveHub({ initial, locale, initialStale, renderedAt }: { initial: LiveCatalog; locale: Locale; initialStale: boolean; renderedAt: number }) {
   const { catalog, stale } = useLiveCatalog(initial, initialStale);
-  const [now, setNow] = useState(0);
-  useEffect(() => { setNow(Date.now()); }, [catalog]);
+  const now = useLiveClock(renderedAt) ?? renderedAt;
   const [competition, setCompetition] = useState('');
   const [team, setTeam] = useState('');
   const t = getLiveCopy(locale);
@@ -40,10 +40,10 @@ export function LiveHub({ initial, locale, initialStale }: { initial: LiveCatalo
     </div>}
     {catalog.matches.length > 0 && filtered.length === 0 && <p role="status" className="card p-6 text-center text-sm text-slate-400">{t.noResults}</p>}
     {sections.map((section) => {
-      const matches = filtered.filter((match) => match.status === section.status).sort((a, b) => section.status === 'ended' ? b.startsAt.localeCompare(a.startsAt) : a.startsAt.localeCompare(b.startsAt));
+      const matches = filtered.filter((match) => match.status === section.status).sort((a, b) => section.status === 'ended' ? Date.parse(b.startsAt) - Date.parse(a.startsAt) : Date.parse(a.startsAt) - Date.parse(b.startsAt));
       return <section key={section.status} aria-labelledby={`section-${section.status}`}>
         <div className="mb-3 flex items-center gap-3"><h2 id={`section-${section.status}`} className={`section-title ${section.status === 'live' ? 'text-red-400' : ''}`}>{section.status === 'live' && <span className="h-2 w-2 animate-pulseDot rounded-full bg-red-400" aria-hidden="true" />}{section.title}</h2><span className="chip tabular-nums">{matches.length}</span></div>
-        {matches.length ? <div className="grid gap-3 sm:grid-cols-2">{matches.map((match) => <LiveMatchCard key={match.matchId} match={match} sourceCount={catalog.streams.filter((stream) => stream.matchId === match.matchId && isStreamVisible(stream, now)).length} locale={locale} />)}</div> : <p className="rounded-lg border border-dashed border-navy-700 px-4 py-5 text-sm text-slate-400">{section.empty}</p>}
+        {matches.length ? <div className="grid gap-3 sm:grid-cols-2">{matches.map((match) => <LiveMatchCard key={match.matchId} match={match} sourceCount={coverageStreams(catalog, match, now).length} locale={locale} />)}</div> : <p className="rounded-lg border border-dashed border-navy-700 px-4 py-5 text-sm text-slate-400">{section.empty}</p>}
       </section>;
     })}
   </div>;
