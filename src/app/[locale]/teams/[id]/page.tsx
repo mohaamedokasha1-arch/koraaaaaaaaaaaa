@@ -18,6 +18,10 @@ import { num } from '@/lib/format';
 import type { SquadPlayer } from '@/lib/types';
 import { absoluteUrl, breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import { getUserTimeZone } from '@/lib/time';
+import { FavoriteButton } from '@/features/personalization/components/FavoriteButton';
+import { favoriteForTeam, favoriteForSquadPlayer } from '@/features/personalization/lib/catalog';
+import { getPersonalCopy } from '@/features/personalization/lib/copy';
+import { playerAnchor } from '@/features/personalization/lib/preferences';
 
 export const dynamic = 'force-dynamic';
 
@@ -209,6 +213,9 @@ export default async function TeamPage({
   const squadGroups = groupSquad(team.squad);
   const teamRow = standingsRes?.data.find((r) => r.team.id === team.id || r.team.name === team.shortName || r.team.name === team.name);
   const displayName = locale === 'ar' ? entity?.nameAr ?? team.name : team.name;
+  const favorite = favoriteForTeam(team, team.leagueCode);
+  const canFollowPlayers = team.squad.some((player) => Boolean(favoriteForSquadPlayer(player, team)));
+  const personal = getPersonalCopy(locale);
 
   const teamJsonLd = {
     '@context': 'https://schema.org',
@@ -273,6 +280,7 @@ export default async function TeamPage({
             )}
           </p>
         </div>
+        {favorite && <div className="relative ms-auto"><FavoriteButton favorite={favorite} locale={locale} compact={false} /></div>}
         {team.website && (
           <a
             href={team.website.startsWith('http') ? team.website : `https://${team.website}`}
@@ -369,19 +377,24 @@ export default async function TeamPage({
                         <th className="px-4 py-2.5 text-start font-semibold">{dict.teams.name}</th>
                         <th className="hidden sm:table-cell px-4 py-2.5 text-start font-semibold">{dict.teams.position}</th>
                         <th className="hidden md:table-cell px-4 py-2.5 text-start font-semibold">{dict.teams.nationality}</th>
+                        {canFollowPlayers && <th className="w-14 px-2 py-2.5 text-center"><span className="sr-only">{personal.follow}</span></th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {g.players.map((p, i) => (
-                        <tr key={`${p.name}-${i}`} className="border-b border-navy-800/70 hover:bg-navy-800/60 transition-colors">
+                      {g.players.map((p, i) => {
+                        const playerFavorite = favoriteForSquadPlayer(p, team);
+                        return (
+                        <tr id={playerFavorite ? playerAnchor(playerFavorite.providerId!) : undefined} key={`${p.name}-${i}`} className="border-b border-navy-800/70 hover:bg-navy-800/60 transition-colors">
                           <td className="px-4 py-2.5 text-center font-bold text-slate-300 tabular-nums">
                             {p.shirtNumber != null ? num(p.shirtNumber, locale) : '–'}
                           </td>
                           <td className="px-4 py-2.5 font-medium text-slate-100">{p.name}</td>
                           <td className="hidden sm:table-cell px-4 py-2.5 text-slate-400">{p.position ?? '–'}</td>
                           <td className="hidden md:table-cell px-4 py-2.5 text-slate-400">{p.nationality ?? '–'}</td>
+                          {canFollowPlayers && <td className="px-2 py-2.5 text-center">{playerFavorite && <FavoriteButton favorite={playerFavorite} locale={locale} />}</td>}
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -4,20 +4,29 @@ import type { Locale } from '@/i18n/locales';
 import type { Scorer } from '@/lib/types';
 import { TeamLogo } from './team-logo';
 import { num } from '@/lib/format';
+import { FavoriteButton } from '@/features/personalization/components/FavoriteButton';
+import { favoriteForScorer } from '@/features/personalization/lib/catalog';
+import { playerAnchor } from '@/features/personalization/lib/preferences';
+import { getPersonalCopy } from '@/features/personalization/lib/copy';
 
 export function ScorersTable({
   scorers,
   locale,
   dict,
   limit,
+  leagueCode,
 }: {
   scorers: Scorer[];
   locale: Locale;
   dict: Dictionary;
   limit?: number;
+  leagueCode?: string;
 }) {
   const t = dict.scorers;
   const list = limit ? scorers.slice(0, limit) : scorers;
+  const favorites = list.map((scorer) => favoriteForScorer(scorer, leagueCode));
+  const canFollow = favorites.some(Boolean);
+  const personal = getPersonalCopy(locale);
 
   return (
     <div className="card overflow-hidden">
@@ -32,11 +41,13 @@ export function ScorersTable({
               <th className="px-2 py-2.5 text-center font-semibold">{t.assists}</th>
               <th className="hidden sm:table-cell px-2 py-2.5 text-center font-semibold">{t.penalties}</th>
               <th className="hidden sm:table-cell px-2 py-2.5 text-center font-semibold">{t.played}</th>
+              {canFollow && <th className="w-14 px-2 py-2.5 text-center"><span className="sr-only">{personal.follow}</span></th>}
             </tr>
           </thead>
           <tbody>
-            {list.map((s) => (
+            {list.map((s, index) => (
               <tr
+                id={favorites[index] ? playerAnchor(favorites[index]!.providerId!) : undefined}
                 key={`${s.rank}-${s.name}`}
                 className={`border-b border-navy-800/70 transition-colors hover:bg-navy-800/60 ${
                   s.rank === 1 ? 'bg-[rgba(217,169,63,0.06)] border-s-4 border-s-[#d9a93f]' : ''
@@ -62,6 +73,7 @@ export function ScorersTable({
                 <td className="px-2 py-2.5 text-center text-slate-300 tabular-nums">{s.assists == null ? '–' : num(s.assists, locale)}</td>
                 <td className="hidden sm:table-cell px-2 py-2.5 text-center text-slate-400 tabular-nums">{s.penalties == null ? '–' : num(s.penalties, locale)}</td>
                 <td className="hidden sm:table-cell px-2 py-2.5 text-center text-slate-400 tabular-nums">{s.played == null ? '–' : num(s.played, locale)}</td>
+                {canFollow && <td className="px-2 py-2.5 text-center">{favorites[index] && <FavoriteButton favorite={favorites[index]!} locale={locale} />}</td>}
               </tr>
             ))}
           </tbody>

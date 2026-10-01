@@ -1,0 +1,139 @@
+{
+  "localDate": "2026-10-02",
+  "appVersion": "0.1.0",
+  "baseline": {
+    "unitTests": 190,
+    "e2eTests": 38,
+    "home": {
+      "method": "Lighthouse mobile, localhost production build, one run, identical Chromium/settings",
+      "scores": {
+        "performance": 98,
+        "accessibility": 96,
+        "best-practices": 96,
+        "seo": 100
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 931.0409999999999,
+          "display": "0.9 s"
+        },
+        "largest-contentful-paint": {
+          "value": 2296.5615,
+          "display": "2.3 s"
+        },
+        "total-blocking-time": {
+          "value": 60.5,
+          "display": "60 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "total-byte-weight": {
+          "value": 248491,
+          "display": "Total size was 243 KiB"
+        }
+      },
+      "requests": 31,
+      "jsRequests": 11,
+      "jsTransferredBytes": 214199,
+      "limitations": [
+        "not a Vercel staging deployment",
+        "no real keyed-provider data configured",
+        "external crest network failures",
+        "existing contrast findings"
+      ]
+    }
+  },
+  "after": {
+    "unitTests": 230,
+    "e2eTests": 68,
+    "seoAssertions": 155,
+    "unitHelperCoverage": {
+      "scope": "8 imported pure helper files only; excludes React/JSX/canvas/server renderer and the rest of the app",
+      "linesPercent": 100,
+      "branchesPercent": 90.08,
+      "functionsPercent": 100
+    },
+    "home": {
+      "method": "Lighthouse mobile, localhost production build, one run, identical Chromium/settings",
+      "scores": {
+        "performance": 98,
+        "accessibility": 96,
+        "best-practices": 96,
+        "seo": 100
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 926.529,
+          "display": "0.9 s"
+        },
+        "largest-contentful-paint": {
+          "value": 2476.2934999999998,
+          "display": "2.5 s"
+        },
+        "total-blocking-time": {
+          "value": 53.5,
+          "display": "50 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "total-byte-weight": {
+          "value": 249493,
+          "display": "Total size was 244 KiB"
+        }
+      },
+      "requests": 31,
+      "jsRequests": 11,
+      "jsTransferredBytes": 214911,
+      "limitations": [
+        "not a Vercel staging deployment",
+        "no real keyed-provider data configured",
+        "external crest network failures",
+        "existing contrast findings"
+      ]
+    }
+  },
+  "deferredChunks": {
+    "measurement": "Raw production JS file sizes, not route-level transferred bytes",
+    "cardPanelAndSvgBytes": 26591,
+    "canvasExporterBytes": 1154
+  },
+  "ogAssets": {
+    "arabicFontBytes": 12012,
+    "latinFontBytes": 13464,
+    "licenceBytes": 4314,
+    "outputDimensions": [
+      1200,
+      630
+    ],
+    "outputLimitBytes": 512000,
+    "cacheEntries": 32,
+    "maxInflightRenders": 8,
+    "nextTraceFiles": 289,
+    "nextUncompressedTraceBytes": 53722905
+  },
+  "knownDependencyVulnerabilities": 0,
+  "verification": {
+    "typecheck": true,
+    "lint": true,
+    "defaultBuild": true,
+    "liveEnabledBuild": true,
+    "liveValidate": true,
+    "localSeo": true,
+    "stagingDeployment": false,
+    "realCurrentMatchProviderCoverage": false,
+    "physicalIosSafari": false,
+    "actualSocialPlatformPublishing": false
+  },
+  "infrastructureAdded": [],
+  "dependencyManifestChanged": false,
+  "sampleExports": {
+    "method": "Isolated browser/source fixtures only, actual generated files; not real match evidence",
+    "svgBytes": 6629,
+    "nativeCanvasPngBytes": 597472,
+    "serverOgPngBytes": 76972
+  }
+}

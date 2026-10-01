@@ -7,13 +7,16 @@ import { getMatchMemo as getMatch, ServiceError } from '@/lib/football';
 import { slugForTeam } from '@/lib/entities';
 import { decodeEntityId } from '@/lib/constants';
 import { hasEnoughMeetings } from '@/lib/h2h';
-import type { MatchEvent, UnifiedMatch } from '@/lib/types';
+import type { UnifiedMatch } from '@/lib/types';
 import { TeamLogo } from '@/components/team-logo';
 import { ErrorState, StaleNotice } from '@/components/empty-state';
-import { formatFullDate, minuteLabel, num } from '@/lib/format';
+import { formatFullDate, formatKickoffTime, minuteLabel, num } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { absoluteUrl, breadcrumbJsonLd, clip, localePath, pageMetadata } from '@/lib/seo';
 import { getUserTimeZone } from '@/lib/time';
+import { MatchStory } from '@/features/match-story/components/MatchStory';
+import { ShareCardGate } from '@/features/share-cards/components/ShareCardGate';
+import { buildShareCard, hasOgTypography } from '@/features/share-cards/lib/model';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +37,7 @@ export async function generateMetadata({
       return pageMetadata({ locale, path: `/matches/${id}`, title: dict.match.matchDetails, description: dict.site.description, indexable: false });
     }
     const m = result.data;
-    const title = titleOf(m, dict);
+    const card = buildShareCard(result, locale);
     const description = clip(
       dict.seo.matchDesc
         .replace('{home}', m.home.name)
@@ -47,64 +50,12 @@ export async function generateMetadata({
       title: dict.seo.matchTitle.replace('{home}', m.home.name).replace('{away}', m.away.name),
       description,
       type: 'article',
+      image: card && hasOgTypography(card) ? localePath(locale, `/matches/${encodeURIComponent(id)}/share-image`) : undefined,
     });
   } catch {
     // Transient provider failure — the page must not be indexed as a stub.
     return pageMetadata({ locale, path: `/matches/${id}`, title: dict.match.matchDetails, description: dict.site.description, indexable: false });
   }
-}
-
-function eventIcon(type: MatchEvent['type']) {
-  if (type === 'goal' || type === 'penalty_goal' || type === 'own_goal') return '⚽';
-  if (type === 'yellow') return '🟨';
-  if (type === 'red' || type === 'yellow_red') return '🟥';
-  return '🔁';
-}
-
-function eventLabel(e: MatchEvent, dict: ReturnType<typeof getDictionary>) {
-  const t = dict.match;
-  switch (e.type) {
-    case 'goal': return t.goal;
-    case 'own_goal': return t.ownGoal;
-    case 'penalty_goal': return `${t.goal} (${t.penalty})`;
-    case 'yellow': return t.yellowCard;
-    case 'red':
-    case 'yellow_red': return t.redCard;
-    case 'sub': return t.substitution;
-  }
-}
-
-function EventsTimeline({ match, dict }: { match: UnifiedMatch; dict: ReturnType<typeof getDictionary> }) {
-  if (match.events.length === 0) {
-    return <p className="px-5 py-6 text-center text-sm text-slate-400">{dict.match.noEvents}</p>;
-  }
-  return (
-    <ol className="divide-y divide-navy-800/70">
-      {match.events.map((e, i) => {
-        const isHome = e.teamId === match.home.id;
-        const side = e.teamId ? (isHome ? match.home.name : match.away.name) : '';
-        return (
-          <li key={i} className="flex items-center gap-3 px-4 sm:px-5 py-3">
-            <span className="w-10 shrink-0 text-center text-sm font-bold text-slate-300 tabular-nums">
-              {minuteLabel(e.minute, e.extraMinute)}
-            </span>
-            <span className="text-lg" aria-hidden="true">{eventIcon(e.type)}</span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">
-                {eventLabel(e, dict)}
-                {e.player ? ` — ${e.player}` : ''}
-              </p>
-              <p className="truncate text-xs text-slate-400">
-                {e.type === 'sub'
-                  ? [e.playerIn, e.playerOut ? `← ${e.playerOut}` : null].filter(Boolean).join('  ')
-                  : [e.assist ? `↳ ${e.assist}` : null, side].filter(Boolean).join('  ·  ')}
-              </p>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  );
 }
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
@@ -145,6 +96,7 @@ export default async function MatchPage({
   }
 
   const m = result.data;
+  const shareCard = buildShareCard(result, locale);
   const played = m.status !== 'scheduled' && m.status !== 'postponed' && m.status !== 'cancelled';
   const kickoff = new Date(m.utcDate).getTime();
   const shouldRefreshMatch =
@@ -219,8 +171,8 @@ export default async function MatchPage({
   return (
     <div className="container-page py-6 sm:py-8 space-y-6">
       {shouldRefreshMatch && <AutoRefresh intervalMs={60_000} />}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs).replace(/</g, '\\u003c') }} />
 
       <nav aria-label="breadcrumb" className="text-xs text-slate-500">
         <ol className="flex flex-wrap items-center gap-1.5">
@@ -323,11 +275,7 @@ export default async function MatchPage({
           <p className="mt-5 text-center text-[11px] text-slate-500">
             {dict.common.lastUpdated}:{' '}
             <time dateTime={result.fetchedAt} className="tabular-nums">
-              {new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', {
-                hour: '2-digit',
-                minute: '2-digit',
-                timeZone: process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE ?? 'Africa/Cairo',
-              }).format(new Date(result.fetchedAt))}
+              {formatKickoffTime(result.fetchedAt, locale, tz)}
             </time>
             {result.source !== 'cache' && result.source !== 'none' ? ` · ${result.source}` : ''}
             {result.stale ? ` · ${dict.common.cachedNotice}` : ''}
@@ -337,14 +285,11 @@ export default async function MatchPage({
 
       {result.stale && <StaleNotice message={dict.common.cachedNotice} />}
 
+      {shareCard && <ShareCardGate model={shareCard} />}
+
       <div className="grid gap-6 lg:grid-cols-5">
-        {/* Events */}
-        <section className="card overflow-hidden lg:col-span-3" aria-label={dict.match.events}>
-          <h2 className="border-b border-navy-700 px-4 sm:px-5 py-3 text-base font-bold text-white">
-            {dict.match.events}
-          </h2>
-          <EventsTimeline match={m} dict={dict} />
-        </section>
+        {/* Enhance the existing event feed; never duplicate its data requests. */}
+        <MatchStory match={m} locale={locale} />
 
         {/* Details */}
         <section className="card h-fit overflow-hidden lg:col-span-2" aria-label={dict.match.matchDetails}>

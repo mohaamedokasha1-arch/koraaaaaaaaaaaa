@@ -15,6 +15,43 @@ npm run build && npm start
 
 Open **http://localhost:3000** → redirects to `/ar` (or your last chosen locale).
 
+## Interactive experience — Cycle1 (2026-10-02, app0.1.0)
+
+The existing public `/{locale}/matches/{id}` page now enhances its provider events
+with **Match Story**: accessible event details, minute-range tabs, RTL/LTR keyboard
+and touch navigation, and source-recorded full-time highlights. A missing event
+feed stays missing; the official score/minute is never computed from partial events.
+
+**Shareable Cards** add source-status result/live/fixture previews, standalone SVG,
+optional client PNG, copy of the actual public match link, supported native sharing,
+and ordinary Facebook/X links. The panel/exporter are deferred until user intent.
+A public technical `/{locale}/matches/{id}/share-image` GET supplies1200×630 PNG
+for existing OG/Twitter metadata; it is not a new indexable football page.
+
+No new environment variables, dependencies, database or subscriptions. Public
+cards use UTC; page display still follows the visitor's existing timezone choice.
+Images are **dated snapshots**, not files that update themselves after sharing.
+Club names/text monograms and the original KoraScore mark replace unlicensed club
+art in exports. The small OFL-licensed OG font is local/server-only, not a new web
+font on every page. Unsupported OG glyphs retain safe default metadata rather than
+inventing a translated name or requesting remote fonts.
+
+The existing guest profile/favourites/personal home remain **local-first**;
+accounts/cloud sync and shared fan-poll totals are not enabled. Cycle2+ awaits
+follow-up, actual statistics/lineups where needed, and backend/licensing approval.
+
+- [Feature inventory and staged roadmap](FEATURES.md)
+- [Pre-code audit/source matrix](docs/INTERACTIVE-PHASE0-AUDIT.md)
+- [Component props, security, source/cache contracts and maintenance](docs/INTERACTIVE-COMPONENTS.md)
+- [Local delivery report and verification limits](docs/INTERACTIVE-CYCLE1-DELIVERY.md)
+- [Measured before/after metrics](docs/INTERACTIVE-CYCLE1-METRICS.json)
+
+Verified locally: **230 Node tests,68 browser tests**, typecheck/lint, default/live
+builds,0 known dependency vulnerabilities and155 local SEO assertions. Lighthouse
+home/mobile98/96/96/100 before/after; this is not a Vercel staging deployment or
+real-provider coverage proof. Synthetic cases exist only in the separate browser
+fixture process, never in production data/routes. No merge/deployment was performed.
+
 ## Environment variables
 
 | Variable | Required | Purpose |
@@ -229,12 +266,17 @@ Official broadcast centre: [operating guide](docs/live/README.md) · [follow-up 
 
 ## Deliberate scope decisions (vs. the master brief)
 
-1. **No database** — per the "zero-cost, serverless-ready" directive: persistence is the
-   tiered cache layer. DB schema is archived as an upgrade path (swap cache.ts + Prisma).
+1. **No database required for public scores or local-first personalisation**:
+   the server cache is best-effort, not durable shared persistence. The broadcast
+   module has an optional real Supabase database when configured; it is not a
+   "no-database service" or proof of zero operating cost. Accounts/polls need a
+   separately approved durable backend rather than fictional local vote totals.
 2. **Players**: full squads live on team pages, scorers on top-scorers; a global player
    search needs a provider with free player search (api-football add-on).
-3. **Live stats/lineups/H2H** tabs are spec'd but gated behind football-data's paid tiers —
-   sections render only when a provider actually returns the data.
+3. **H2H already exists** and is reused. Detailed possession/shots/corners,
+   starting lineups, coordinates and player ratings are absent from the current
+   UnifiedMatch/adapters; those sections remain hidden until source-backed data
+   is available. API branding or a squad list does not prove those capabilities.
 4. Sync logs are the in-memory health registry (see `/api/health`) instead of a DB table.
 
 ## Scripts

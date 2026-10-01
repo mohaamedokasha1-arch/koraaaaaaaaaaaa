@@ -2,7 +2,7 @@ import type { NewsItem } from '@/lib/types';
 import type { Dictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 
-function formatDate(iso: string | null, locale: Locale): string | null {
+function formatDate(iso: string | null, locale: Locale, tz: string): string | null {
   if (!iso) return null;
   try {
     return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', {
@@ -10,7 +10,7 @@ function formatDate(iso: string | null, locale: Locale): string | null {
       month: 'short',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE ?? 'Africa/Cairo',
+      timeZone: tz,
     }).format(new Date(iso));
   } catch {
     return null;
@@ -26,16 +26,18 @@ export function NewsList({
   locale,
   dict,
   compact = false,
+  tz = process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE ?? 'Africa/Cairo',
 }: {
   items: NewsItem[];
   locale: Locale;
-  dict: Dictionary;
+  dict: { news: Pick<Dictionary['news'], 'readAtSource'> };
   compact?: boolean;
+  tz?: string;
 }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2">
       {items.map((item) => {
-        const date = formatDate(item.publishedAt, locale);
+        const date = formatDate(item.publishedAt, locale, tz);
         return (
           <li key={item.id}>
             <article className="card card-hover flex h-full flex-col gap-2 px-4 py-4">

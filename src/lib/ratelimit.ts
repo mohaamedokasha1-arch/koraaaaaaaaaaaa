@@ -8,7 +8,8 @@ import 'server-only';
  * upstream providers' quota. Normal users — and crawlers hitting pages, which
  * are served from the shared cache — never hit these limits.
  *
- * `Googlebot` and other declared crawlers are exempt: the JSON API is not part
+ * `Googlebot` and other declared crawlers are exempt by default (new private
+ * reads opt out with allowCrawlerBypass: false): the JSON API is not part
  * of the crawlable page experience and the pages never depend on a client-side
  * call to render their main content, but exempting them avoids any chance of a
  * false 429 during rendering.
@@ -48,7 +49,7 @@ export interface RateLimitResult {
   retryAfterSeconds: number;
 }
 
-/** Client identity for limiting purposes — never logged, never stored. */
+/** Ephemeral limiter key in this instance only; no application logging or DB. */
 export function clientKey(request: Request, scope: string): string {
   const forwarded = request.headers.get('x-forwarded-for') ?? '';
   const ip = forwarded.split(',')[0].trim() || request.headers.get('x-real-ip') || 'unknown';
@@ -63,12 +64,12 @@ export function isCrawler(request: Request): boolean {
 export function rateLimit(
   request: Request,
   scope: string,
-  { limit, windowSeconds }: { limit: number; windowSeconds: number },
+  { limit, windowSeconds, allowCrawlerBypass = true }: { limit: number; windowSeconds: number; allowCrawlerBypass?: boolean },
 ): RateLimitResult {
   const now = Date.now();
   cleanup(now);
 
-  if (isCrawler(request)) {
+  if (allowCrawlerBypass && isCrawler(request)) {
     return { ok: true, remaining: limit, retryAfterSeconds: 0 };
   }
 

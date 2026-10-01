@@ -11,7 +11,7 @@ export function StatusChip({
 }: {
   match: UnifiedMatch;
   locale: Locale;
-  dict: Dictionary;
+  dict: Pick<Dictionary, 'match'>;
   tz?: string;
 }) {
   const m = dict.match;

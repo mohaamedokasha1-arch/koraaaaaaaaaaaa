@@ -73,6 +73,8 @@ export function MobileNav({ locale, dict }: { locale: Locale; dict: Dictionary }
   }, []);
 
   const extra = [
+    { href: `/${locale}/profile`, label: locale === 'ar' ? 'مساحتي' : 'My space' },
+    { href: `/${locale}/search`, label: dict.search.title },
     { href: `/${locale}/standings`, label: dict.nav.standings },
     { href: `/${locale}/top-scorers`, label: dict.nav.topScorers },
     { href: `/${locale}/teams`, label: dict.nav.teams },
@@ -99,12 +101,13 @@ export function MobileNav({ locale, dict }: { locale: Locale; dict: Dictionary }
       {open && (
         <nav
           aria-label="Mobile"
-          className="absolute end-0 top-full mt-2 w-56 rounded-xl border border-navy-600 bg-navy-850 p-2 shadow-lift ring-1 ring-black/40"
+          className="absolute end-0 top-full mt-2 max-h-[calc(100dvh-88px)] w-56 overflow-y-auto rounded-xl border border-navy-600 bg-navy-850 p-2 shadow-lift ring-1 ring-black/40"
         >
-          {[...items(locale, dict), ...extra].map((item) => (
+          {[...items(locale, dict), ...extra].filter((item, index, list) => list.findIndex((entry) => entry.href === item.href) === index).map((item) => (
             <Link
               key={item.href}
               href={item.href}
+              prefetch={item.href === `/${locale}/profile` ? false : undefined}
               className={`block rounded-lg px-3 py-2.5 text-sm font-medium min-h-[44px] ${
                 pathname === item.href
                   ? 'bg-navy-700 text-white'

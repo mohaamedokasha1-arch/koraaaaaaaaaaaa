@@ -32,6 +32,19 @@ export const TIMEZONE_CHOICES: { id: string; labelAr: string; labelEn: string }[
   { id: 'Europe/Rome', labelAr: 'روما', labelEn: 'Rome' },
   { id: 'Europe/Berlin', labelAr: 'برلين', labelEn: 'Berlin' },
   { id: 'Europe/Paris', labelAr: 'باريس', labelEn: 'Paris' },
+  // Existing picker, expanded for the global audience (same cookie/validation).
+  { id: 'Africa/Lagos', labelAr: 'لاغوس', labelEn: 'Lagos' },
+  { id: 'Africa/Johannesburg', labelAr: 'جوهانسبرغ', labelEn: 'Johannesburg' },
+  { id: 'Asia/Kolkata', labelAr: 'كولكاتا', labelEn: 'Kolkata' },
+  { id: 'Asia/Singapore', labelAr: 'سنغافورة', labelEn: 'Singapore' },
+  { id: 'Asia/Tokyo', labelAr: 'طوكيو', labelEn: 'Tokyo' },
+  { id: 'Asia/Seoul', labelAr: 'سيول', labelEn: 'Seoul' },
+  { id: 'America/New_York', labelAr: 'نيويورك', labelEn: 'New York' },
+  { id: 'America/Los_Angeles', labelAr: 'لوس أنجلوس', labelEn: 'Los Angeles' },
+  { id: 'America/Mexico_City', labelAr: 'مكسيكو سيتي', labelEn: 'Mexico City' },
+  { id: 'America/Sao_Paulo', labelAr: 'ساو باولو', labelEn: 'São Paulo' },
+  { id: 'Australia/Sydney', labelAr: 'سيدني', labelEn: 'Sydney' },
+  { id: 'Pacific/Auckland', labelAr: 'أوكلاند', labelEn: 'Auckland' },
   { id: 'UTC', labelAr: 'التوقيت العالمي', labelEn: 'UTC' },
 ];
 

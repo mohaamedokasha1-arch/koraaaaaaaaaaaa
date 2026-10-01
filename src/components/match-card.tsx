@@ -31,7 +31,7 @@ export function MatchCard({
 }: {
   match: UnifiedMatch;
   locale: Locale;
-  dict: Dictionary;
+  dict: { common: Pick<Dictionary['common'], 'versus'>; match: Dictionary['match'] };
   tz?: string;
   showLeague?: boolean;
 }) {

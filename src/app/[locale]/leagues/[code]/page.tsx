@@ -14,6 +14,8 @@ import { num } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import { getUserTimeZone } from '@/lib/time';
+import { FavoriteButton } from '@/features/personalization/components/FavoriteButton';
+import { favoriteForLeague } from '@/features/personalization/lib/catalog';
 import {
   groupByMatchday,
   getHistoricalSeason,
@@ -76,6 +78,7 @@ export default async function LeagueDetailPage({
 
   const bundle = await getLeagueBundle(code);
   const leagueName = locale === 'ar' ? featured.nameAr : featured.nameEn;
+  const favorite = favoriteForLeague(code);
 
   const standings = bundle.standings;
   const scorers = bundle.scorers;
@@ -137,7 +140,7 @@ export default async function LeagueDetailPage({
         </ol>
       </nav>
 
-      <header className="card relative flex items-center gap-4 overflow-hidden px-5 py-5">
+      <header className="card relative flex flex-wrap items-center gap-4 overflow-hidden px-5 py-5">
         <span aria-hidden="true" className="pointer-events-none absolute inset-0 hero-glow opacity-70" />
         <span className="crest-tile relative h-16 w-16">
           <TeamLogo src={featured.emblem} alt={leagueName} size={48} />
@@ -148,6 +151,7 @@ export default async function LeagueDetailPage({
             <span className="chip">{locale === 'ar' ? featured.countryAr : featured.country}</span>
           </p>
         </div>
+        {favorite && <div className="relative ms-auto"><FavoriteButton favorite={favorite} locale={locale} compact={false} /></div>}
       </header>
 
       {stale && <div className="mt-4"><StaleNotice message={dict.common.cachedNotice} /></div>}
@@ -190,7 +194,7 @@ export default async function LeagueDetailPage({
 
         {tab === 'scorers' &&
           (scorers && scorers.data.length > 0 ? (
-            <ScorersTable scorers={scorers.data} locale={locale} dict={dict} />
+            <ScorersTable scorers={scorers.data} locale={locale} dict={dict} leagueCode={code} />
           ) : (
             <EmptyState title={dict.common.noData} body={dict.common.dataUnavailable} />
           ))}
