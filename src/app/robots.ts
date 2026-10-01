@@ -21,7 +21,19 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/_next/image', '/_next/webpack-hmr'],
+        disallow: [
+          '/api/',
+          '/_next/image',
+          '/_next/webpack-hmr',
+          // Search result pages are never indexable: a user query must not
+          // become a crawlable URL (infinite crawl space + duplicate content).
+          '/search',
+          '/*?q=',
+          '/*?tab=',
+          '/*?league=',
+          '/*?season=',
+          '/*?page=',
+        ],
       },
       // Explicitly welcomed — the site wants to be crawled by the major engines.
       { userAgent: 'Googlebot', allow: '/' },

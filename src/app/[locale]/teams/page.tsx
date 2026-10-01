@@ -5,6 +5,7 @@ import type { Locale } from '@/i18n/locales';
 import { pageMetadata } from '@/lib/seo';
 import { getLeagueTeams } from '@/lib/football';
 import { leagueByCode } from '@/lib/constants';
+import { slugForTeam } from '@/lib/entities';
 import { TeamLogo } from '@/components/team-logo';
 import { LeagueSelect } from '@/components/league-select';
 import { EmptyState, ErrorState } from '@/components/empty-state';
@@ -72,7 +73,7 @@ export default async function TeamsPage({
             {result.data.map((t) => (
               <Link
                 key={t.id}
-                href={`/${locale}/teams/${t.id}`}
+                href={`/${locale}/teams/${slugForTeam({ id: t.id, name: t.name }, undefined, code)}`}
                 className="card card-hover group flex flex-col items-center gap-3 px-4 py-5 text-center"
               >
                 <span className="crest-tile h-14 w-14 transition-colors group-hover:ring-navy-500">

@@ -13,6 +13,12 @@ export interface FeedItem {
   sourceUrl: string;
   publishedAt: string | null;
   excerpt: string;
+  /**
+   * Image declared by the feed. Only ever surfaced when the source directory
+   * confirms the publisher permits image display (`imagesAllowed`); otherwise it
+   * stays unused. Null is the honest default.
+   */
+  imageUrl?: string | null;
 }
 
 export interface FeedConfig {
@@ -30,19 +36,35 @@ export interface FeedConfig {
   url: string;
   /** Optional override of the display label; defaults to the feed host. */
   homepage?: string;
+  /**
+   * Extra hosts this publisher legitimately serves articles from, e.g. a BBC
+   * feed on feeds.bbci.co.uk links to www.bbc.co.uk. Explicit is the whole
+   * point: no heuristic guessing about which third-party host is trustworthy.
+   */
+  allowedHosts?: string[];
+  /** True only when the publisher's terms were verified to allow image display. */
+  imagesAllowed?: boolean;
 }
 
-/** Parse `Label|https://feed,Label2|https://feed2` into feed configs. */
+/** Parse `Label|https://feed[|Homepage[|host1;host2]]` into feed configs. */
 export function parseFeedConfig(raw: string | undefined): FeedConfig[] {
   if (!raw) return [];
   const feeds: FeedConfig[] = [];
   for (const part of raw.split(',')) {
-    const [label, url, homepage] = part.split('|').map((s) => s?.trim());
+    const [label, url, homepage, hosts] = part.split('|').map((s) => s?.trim());
     if (!label || !url) continue;
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') continue;
-      feeds.push({ name: label, url: parsed.toString(), homepage: homepage || `${parsed.protocol}//${parsed.host}` });
+      const allowedHosts = hosts
+        ? hosts.split(';').map((h) => h.trim().toLowerCase()).filter(Boolean)
+        : undefined;
+      feeds.push({
+        name: label,
+        url: parsed.toString(),
+        homepage: homepage || `${parsed.protocol}//${parsed.host}`,
+        allowedHosts,
+      });
     } catch {
       continue;
     }
@@ -78,8 +100,7 @@ export function sanitizeFeedText(input: string | undefined, maxLength: number): 
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]*>/g, ' ');
   const decoded = decodeEntities(withoutTags)
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return decoded.length <= maxLength ? decoded : `${decoded.slice(0, maxLength - 1).trimEnd()}…`;
@@ -106,13 +127,20 @@ export function parseFeed(xml: string, feed: FeedConfig): FeedItem[] {
 
   for (const block of entries.slice(0, MAX_ITEMS_PER_FEED * 2)) {
     const title = sanitizeFeedText(tag(block, ['title']), MAX_TITLE);
-    const link = safeLink(tag(block, ['link', 'guid', 'id']), feedHost);
+    const link = safeLink(tag(block, ['link', 'guid', 'id']), feedHost, feed.allowedHosts);
     if (!title || !link) continue;
 
     const published = sanitizeFeedText(tag(block, ['pubDate', 'published', 'updated', 'dc:date']), 60);
     const excerpt = sanitizeFeedText(
       tag(block, ['description', 'summary', 'content:encoded', 'content']),
       MAX_EXCERPT,
+    );
+
+    const image = safeImage(
+      mediaUrl(block) ?? undefined,
+      feedHost,
+      feed.allowedHosts,
+      feed.imagesAllowed,
     );
 
     items.push({
@@ -123,10 +151,29 @@ export function parseFeed(xml: string, feed: FeedConfig): FeedItem[] {
       sourceUrl: feed.homepage ?? `${new URL(feed.url).protocol}//${feedHost}`,
       publishedAt: toIso(published),
       excerpt: excerpt === title ? '' : excerpt,
+      imageUrl: image,
     });
     if (items.length >= MAX_ITEMS_PER_FEED) break;
   }
   return items;
+}
+
+/** First image the item declares (media:content / media:thumbnail / enclosure). */
+function mediaUrl(block: string): string | null {
+  const patterns = [
+    /<media:content[^>]*url=["']([^"']+)["'][^>]*>/i,
+    /<media:thumbnail[^>]*url=["']([^"']+)["'][^>]*>/i,
+    /<enclosure[^>]*url=["']([^"']+)["'][^>]*type=["']image\/[^"']*["'][^>]*>/i,
+    /<enclosure[^>]*type=["']image\/[^"']*["'][^>]*url=["']([^"']+)["'][^>]*>/i,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(block);
+    if (match) {
+      const decoded = decodeEntities(match[1]).trim();
+      if (decoded.startsWith('http')) return decoded;
+    }
+  }
+  return null;
 }
 
 function safeHost(url: string): string {
@@ -137,18 +184,73 @@ function safeHost(url: string): string {
   }
 }
 
-/** Only http(s) links pointing at the feed's own host are accepted. */
-function safeLink(raw: string | undefined, feedHost: string): string | null {
+/**
+ * Only http(s) links on the publisher's own hosts are accepted.
+ *
+ * SECURITY (fixes the previous `endsWith(root)` check, which accepted ANY
+ * `*.co.uk` link for a feed hosted on feeds.bbci.co.uk, and `evilexample.com`
+ * for rss.example.com): a host now matches only on a dot boundary, and when the
+ * operator supplies an explicit allow-list that list alone decides.
+ */
+export function isAllowedLinkHost(host: string, feedHost: string, allowedHosts?: string[]): boolean {
+  const normalized = host.toLowerCase().replace(/\.$/, '');
+  if (!normalized) return false;
+  if (allowedHosts && allowedHosts.length > 0) {
+    return allowedHosts.some(
+      (allowed) => normalized === allowed || normalized.endsWith(`.${allowed}`),
+    );
+  }
+  if (!feedHost) return false;
+  if (normalized === feedHost || normalized.endsWith(`.${feedHost}`)) return true;
+  if (feedHost.endsWith(`.${normalized}`)) return true; // feed on a subdomain of the site
+  // Same publisher, different subdomain (feeds.example.com → www.example.com).
+  // Whole registrable domains are compared — never a raw suffix — so
+  // `evil.co.uk` can never match `bbci.co.uk`.
+  const feedDomain = registrableDomain(feedHost);
+  return Boolean(feedDomain) && registrableDomain(normalized) === feedDomain;
+}
+
+/** Multi-label public suffixes we actually meet in sports feeds. */
+const TWO_PART_SUFFIXES = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'me.uk', 'net.uk', 'sch.uk',
+  'com.au', 'net.au', 'org.au', 'co.nz', 'co.jp', 'ne.jp', 'or.jp',
+  'com.br', 'com.mx', 'com.ar', 'com.tr', 'com.eg', 'com.sa', 'com.ae',
+  'com.qa', 'com.kw', 'com.bh', 'com.om', 'com.jo', 'com.lb', 'com.ma',
+  'com.dz', 'com.tn', 'com.ly', 'com.sd', 'com.ye', 'com.iq', 'com.ng',
+  'co.za', 'co.ke', 'co.il', 'co.in', 'com.pk', 'com.bd', 'com.my',
+  'com.sg', 'co.kr', 'com.tw', 'com.hk', 'com.ph', 'com.vn',
+]);
+
+export function registrableDomain(host: string): string {
+  const parts = host.toLowerCase().replace(/\.$/, '').split('.').filter(Boolean);
+  if (parts.length <= 2) return parts.join('.');
+  const lastTwo = parts.slice(-2).join('.');
+  return TWO_PART_SUFFIXES.has(lastTwo) ? parts.slice(-3).join('.') : lastTwo;
+}
+
+function safeLink(raw: string | undefined, feedHost: string, allowedHosts?: string[]): string | null {
   if (!raw) return null;
   const value = sanitizeFeedText(raw, 500);
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-    const host = url.host.toLowerCase();
-    const root = feedHost.split('.').slice(-2).join('.');
-    if (feedHost && !host.endsWith(root)) return null;
+    if (!isAllowedLinkHost(url.host, feedHost, allowedHosts)) return null;
     url.search = '';
     url.hash = '';
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** Image URLs are held to the identical host policy as article links. */
+function safeImage(raw: string | undefined, feedHost: string, allowedHosts?: string[], imagesAllowed?: boolean): string | null {
+  if (!raw || !imagesAllowed) return null;
+  const value = sanitizeFeedText(raw, 500);
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return null;
+    if (!isAllowedLinkHost(url.host, feedHost, allowedHosts)) return null;
     return url.toString();
   } catch {
     return null;

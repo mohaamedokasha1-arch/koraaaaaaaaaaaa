@@ -7,10 +7,12 @@ export function StatusChip({
   match,
   locale,
   dict,
+  tz,
 }: {
   match: UnifiedMatch;
   locale: Locale;
   dict: Dictionary;
+  tz?: string;
 }) {
   const m = dict.match;
   switch (match.status as MatchStatus) {
@@ -48,7 +50,7 @@ export function StatusChip({
     default:
       return (
         <time dateTime={match.utcDate} className="rounded-md bg-navy-800/70 px-2 py-0.5 text-[11px] font-bold text-slate-200 tabular-nums ring-1 ring-inset ring-navy-700/60">
-          {formatKickoffTime(match.utcDate, locale)}
+          {formatKickoffTime(match.utcDate, locale, tz)}
         </time>
       );
   }

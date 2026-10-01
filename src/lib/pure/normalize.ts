@@ -57,6 +57,7 @@ export const SEARCH_ALIASES: Record<string, string[]> = {
   'بتروجت': ['PetroJet'],
   'حرس الحدود': ['Haras El Hodood', 'Haras El Hodoud'],
   'المقاولون العرب': ['Arab Contractors', 'El Mokawloon'],
+  'الريال': ['Real Madrid', 'Real Madrid CF'],
   'ريال مدريد': ['Real Madrid'],
   'برشلونه': ['Barcelona', 'FC Barcelona'],
   'ليفربول': ['Liverpool'],
@@ -90,6 +91,19 @@ export function expandQuery(raw: string): string[] {
     if (normalized.includes(arabic) || arabic.includes(normalized)) {
       for (const name of latin) candidates.add(name);
       break;
+    }
+  }
+  // Reverse direction: a Latin query ("Real Madrid") also expands to the
+  // Arabic names users type ("ريال مدريد", "الريال") and vice versa, so an
+  // Arabic-titled entity or news item is reachable from either language.
+  for (const [arabic, latin] of Object.entries(SEARCH_ALIASES)) {
+    if (
+      latin.some((value) => {
+        const folded = normalizeText(value);
+        return folded.length >= 3 && (folded.includes(normalized) || normalized.includes(folded));
+      })
+    ) {
+      candidates.add(arabic);
     }
   }
   return Array.from(candidates).slice(0, 4);

@@ -24,12 +24,14 @@ export function MatchList({
   matches,
   locale,
   dict,
+  tz,
   emptyTitle,
   emptyBody,
 }: {
   matches: UnifiedMatch[];
   locale: Locale;
   dict: Dictionary;
+  tz?: string;
   emptyTitle?: string;
   emptyBody?: string;
 }) {
@@ -67,7 +69,7 @@ export function MatchList({
             </h3>
             <div className="space-y-2">
               {ms.map((m) => (
-                <MatchCard key={m.id} match={m} locale={locale} dict={dict} />
+                <MatchCard key={m.id} match={m} locale={locale} dict={dict} tz={tz} />
               ))}
             </div>
           </section>

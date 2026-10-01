@@ -13,6 +13,7 @@ import { EmptyState, StaleNotice } from '@/components/empty-state';
 import { num } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
+import { getUserTimeZone } from '@/lib/time';
 import {
   groupByMatchday,
   getHistoricalSeason,
@@ -60,6 +61,7 @@ export default async function LeagueDetailPage({
   searchParams: Promise<{ tab?: string; season?: string }>;
 }) {
   const { locale, code } = await params;
+  const tz = await getUserTimeZone();
   const { tab: tabParam, season: seasonParam } = await searchParams;
   const dict = getDictionary(locale);
   const featured = leagueByCode(code);
@@ -174,14 +176,14 @@ export default async function LeagueDetailPage({
 
         {tab === 'fixtures' &&
           (fixtures.length > 0 ? (
-            <MatchList matches={fixtures} locale={locale} dict={dict} />
+            <MatchList matches={fixtures} locale={locale} dict={dict} tz={tz} />
           ) : (
             <EmptyState title={dict.common.emptyMatches} body={dict.common.emptyMatchesBody} />
           ))}
 
         {tab === 'results' &&
           (results.length > 0 ? (
-            <MatchList matches={results} locale={locale} dict={dict} />
+            <MatchList matches={results} locale={locale} dict={dict} tz={tz} />
           ) : (
             <EmptyState title={dict.common.emptyMatches} body={dict.common.emptyMatchesBody} />
           ))}

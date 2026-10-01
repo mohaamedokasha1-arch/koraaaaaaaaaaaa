@@ -4,12 +4,16 @@ import { notFound } from 'next/navigation';
 import { getDictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
 import { getMatchMemo as getMatch, ServiceError } from '@/lib/football';
+import { slugForTeam } from '@/lib/entities';
+import { decodeEntityId } from '@/lib/constants';
+import { hasEnoughMeetings } from '@/lib/h2h';
 import type { MatchEvent, UnifiedMatch } from '@/lib/types';
 import { TeamLogo } from '@/components/team-logo';
 import { ErrorState, StaleNotice } from '@/components/empty-state';
 import { formatFullDate, minuteLabel, num } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { breadcrumbJsonLd, clip, pageMetadata } from '@/lib/seo';
+import { getUserTimeZone } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +123,7 @@ export default async function MatchPage({
   params: Promise<{ locale: Locale; id: string }>;
 }) {
   const { locale, id } = await params;
+  const tz = await getUserTimeZone();
   const dict = getDictionary(locale);
 
   let result = null;
@@ -168,6 +173,16 @@ export default async function MatchPage({
       : m.status === 'cancelled'
         ? 'https://schema.org/EventCancelled'
         : 'https://schema.org/EventScheduled';
+  // Internal identity for links: the entity slug when known, legacy provider id
+  // otherwise. Both keep working; the slug is what search engines should hold.
+  const matchSource = decodeEntityId(m.id)?.provider;
+  const homeSlug = slugForTeam({ id: m.home.id, name: m.home.name }, matchSource, m.league.code ?? null);
+  const awaySlug = slugForTeam({ id: m.away.id, name: m.away.name }, matchSource, m.league.code ?? null);
+
+  // A head-to-head link is only rendered when the pair really has enough stored
+  // meetings, so following it never lands on a 404.
+  const h2hReady = hasEnoughMeetings(m.home.name, m.away.name);
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
@@ -238,12 +253,20 @@ export default async function MatchPage({
             )}
           </div>
 
+          {h2hReady && (
+            <p className="mt-4 text-center">
+              <Link href={`/${locale}/h2h/${homeSlug}/${awaySlug}`} className="link-accent text-xs font-semibold">
+                {dict.h2h.title} ↗
+              </Link>
+            </p>
+          )}
+
           <div className="mx-auto grid max-w-2xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-8">
             <div className="flex flex-col items-center gap-2.5 text-center">
               <span className="crest-tile h-20 w-20">
                 <TeamLogo src={m.home.crest} alt={m.home.name} size={60} />
               </span>
-              <Link href={`/${locale}/teams/${m.home.id}`} className="text-sm sm:text-base font-bold text-white hover:text-navy-200">
+              <Link href={`/${locale}/teams/${homeSlug}`} className="text-sm sm:text-base font-bold text-white hover:text-navy-200">
                 {m.home.name}
               </Link>
             </div>
@@ -290,7 +313,7 @@ export default async function MatchPage({
               <span className="crest-tile h-20 w-20">
                 <TeamLogo src={m.away.crest} alt={m.away.name} size={60} />
               </span>
-              <Link href={`/${locale}/teams/${m.away.id}`} className="text-sm sm:text-base font-bold text-white hover:text-navy-200">
+              <Link href={`/${locale}/teams/${awaySlug}`} className="text-sm sm:text-base font-bold text-white hover:text-navy-200">
                 {m.away.name}
               </Link>
             </div>
@@ -330,7 +353,7 @@ export default async function MatchPage({
           </h2>
           <dl className="divide-y divide-navy-800/70">
             <InfoRow label={dict.match.competition} value={m.league.name} />
-            <InfoRow label={dict.match.date} value={formatFullDate(m.utcDate, locale)} />
+            <InfoRow label={dict.match.date} value={formatFullDate(m.utcDate, locale, tz)} />
             {m.matchday != null && (
               <InfoRow label={dict.match.matchday} value={num(m.matchday, locale)} />
             )}

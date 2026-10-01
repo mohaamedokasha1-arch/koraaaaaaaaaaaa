@@ -24,11 +24,13 @@ export function MatchCard({
   match,
   locale,
   dict,
+  tz,
   showLeague = false,
 }: {
   match: UnifiedMatch;
   locale: Locale;
   dict: Dictionary;
+  tz?: string;
   showLeague?: boolean;
 }) {
   const played = match.status !== 'scheduled' && match.status !== 'postponed' && match.status !== 'cancelled';
@@ -75,7 +77,7 @@ export function MatchCard({
           ) : scheduled ? null : (
             <div className="text-base font-semibold text-slate-400">–</div>
           )}
-          <StatusChip match={match} locale={locale} dict={dict} />
+          <StatusChip match={match} locale={locale} dict={dict} tz={tz} />
           <MinuteLabel match={match} />
         </div>
 

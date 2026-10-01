@@ -91,6 +91,19 @@ class MemoryCache {
     this.store.delete(key);
   }
 
+  /**
+   * Keys currently held with a given prefix. Used by features that must reason
+   * over what is already in memory (head-to-head across cached day buckets,
+   * orphan-link audits) without triggering any provider call.
+   */
+  keysWithPrefix(prefix: string): string[] {
+    const out: string[] = [];
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) out.push(key);
+    }
+    return out;
+  }
+
   private evict(): void {
     // drop expired first, then oldest (Map preserves insertion order)
     const now = Date.now();

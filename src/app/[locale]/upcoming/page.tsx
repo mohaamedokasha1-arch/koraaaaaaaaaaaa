@@ -7,6 +7,7 @@ import { MatchList } from '@/components/match-list';
 import { EmptyState, ErrorState } from '@/components/empty-state';
 import { formatDayGroup } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { getUserTimeZone } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: L
 
 export default async function UpcomingPage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
+  const tz = await getUserTimeZone();
   const dict = getDictionary(locale);
 
   let result = null;
@@ -56,9 +58,9 @@ export default async function UpcomingPage({ params }: { params: Promise<{ local
           <section key={group.date}>
             <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
               <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#d9a93f]" />
-              {formatDayGroup(group.date, locale)}
+              {formatDayGroup(group.date, locale, tz)}
             </h2>
-            <MatchList matches={group.matches} locale={locale} dict={dict} />
+            <MatchList matches={group.matches} locale={locale} dict={dict} tz={tz} />
           </section>
         ))}
       </div>
