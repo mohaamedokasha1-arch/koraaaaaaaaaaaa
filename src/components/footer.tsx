@@ -4,13 +4,22 @@ import type { Locale } from '@/i18n/locales';
 import { ALL_LEAGUES } from '@/lib/constants';
 import { Logo } from './logo';
 import { TimezoneSelect } from './timezone-select';
-import { getUserTimeZone } from '@/lib/time';
+import { resolveTimeZone } from '@/lib/pure/time';
+import { LIVE_ENABLED } from '@/features/live/lib/config';
+import { getLiveCopy } from '@/features/live/lib/copy';
 
-export async function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
-  // Times are stored in UTC and rendered in the viewer's own zone.
-  const tz = await getUserTimeZone();
+export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
+  // Cookie selection is hydrated by the client picker so the shared shell
+  // does not force otherwise-static broadcast pages into per-request SSR.
+  const tz = resolveTimeZone(null);
+  const liveCopy = getLiveCopy(locale);
   const sections = [
     { href: `/${locale}/live`, label: dict.nav.live },
+    ...(LIVE_ENABLED ? [
+      { href: `/${locale}/watch`, label: liveCopy.title },
+      { href: `/${locale}/watch/copyright`, label: liveCopy.copyright },
+      { href: `/${locale}/watch/disclaimer`, label: liveCopy.disclaimer },
+    ] : []),
     { href: `/${locale}/today`, label: dict.nav.today },
     { href: `/${locale}/results`, label: dict.nav.results },
     { href: `/${locale}/upcoming`, label: dict.nav.upcoming },

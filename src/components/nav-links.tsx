@@ -5,11 +5,14 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { Dictionary } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/locales';
+import { LIVE_ENABLED } from '@/features/live/lib/config';
+import { getLiveCopy } from '@/features/live/lib/copy';
 
 function items(locale: Locale, dict: Dictionary) {
   return [
     { href: `/${locale}`, label: dict.nav.home },
     { href: `/${locale}/live`, label: dict.nav.live },
+    ...(LIVE_ENABLED ? [{ href: `/${locale}/watch`, label: getLiveCopy(locale).title }] : []),
     { href: `/${locale}/today`, label: dict.nav.today },
     { href: `/${locale}/results`, label: dict.nav.results },
     { href: `/${locale}/upcoming`, label: dict.nav.upcoming },

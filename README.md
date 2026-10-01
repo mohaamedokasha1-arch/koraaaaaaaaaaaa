@@ -62,7 +62,7 @@ The project deploys directly **GitHub → Vercel** with no extra services:
 
    Everything except `NEXT_PUBLIC_*` is **server-side only** — keys are never
    shipped to the browser.
-4. **Deploy.** The Hobby (free) plan is sufficient: no database, no KV, no queues.
+4. **Deploy.** The Hobby (free) plan is sufficient for **personal, noncommercial use**: no database, no KV, no queues. Advertising or affiliate revenue requires Pro or a host/plan that permits commercial use.
 
 ### Vercel compatibility contract (how the app is built)
 
@@ -256,3 +256,28 @@ npm test           # node:test unit tests for the pure parsers/normalisers
 - [x] Active match pages refresh automatically while visible; server TTLs pace provider calls
 - [x] Zero live API calls during the build
 - [x] GitHub → Vercel import requires no config changes
+
+## Official broadcast centre (opt-in)
+
+The isolated `src/features/live` module adds a lawful AR/EN broadcast centre.
+`/live[/<matchId>]` redirects to `/{locale}/watch[/<matchId>]`; the existing
+localized live-score pages and results/data providers are unchanged.
+
+Set **`NEXT_PUBLIC_LIVE_ENABLED=true` at build time** to enable it. The production
+catalogue and approved channel list intentionally ship empty: add only reviewed
+official/licensed sources tied to existing match IDs. Video goes directly from
+the provider to the browser, never through the application server.
+
+JSON/CDN mode requires no new backend; durable anonymous reports and protected
+administration use optional Supabase/RLS. Discovery is opt-in, quota bounded and
+never auto-links a video to a match. No real broadcasts, API keys or licences
+are supplied. Vercel Hobby is personal/noncommercial only.
+
+- [Setup, security, quotas and legal launch checklist](docs/live/README.md)
+- [Staged changed-file list](docs/live/CHANGES.md)
+- [Local verification and outstanding deployment checks](docs/live/QA.md)
+
+Added dependencies are justified: `zod` for validation, lazily loaded `hls.js`
+for licensed HLS, and dev-only `@playwright/test` for failure/fallback browser
+tests. Run `npm run live:validate` and the existing types/lint/test/build gates.
+Build with the flag enabled before `npm run test:e2e`.
