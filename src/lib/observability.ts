@@ -5,6 +5,7 @@ import { matchStoreStats, recentConflicts, stuckLiveMatches } from '@/lib/matchS
 import { ambiguityReview, entityConflicts, registryStats } from '@/lib/entities';
 import { catalogSummary } from '@/lib/providers/catalog';
 import { newsEnabled, newsSourceHealth } from '@/lib/news';
+import { SITE_URL, siteUrlProblem } from '@/lib/seo';
 import { log } from '@/lib/log';
 
 /**
@@ -282,6 +283,20 @@ export function runChecks(now = Date.now()): Observation[] {
     title: 'Cache pressure',
     detail: `${stats.entries}/${stats.maxEntries} entries in this instance.`,
     value: Math.round(pressure * 100),
+    at,
+  });
+
+  // 10. The canonical host. A deployment whose SITE_URL still points at
+  // localhost or *.vercel.app publishes canonicals, hreflang and a sitemap for
+  // the wrong host — invisible in the UI, fatal for indexing, so it is a check
+  // and not a comment in a README.
+  const siteUrlIssue = siteUrlProblem();
+  checks.push({
+    id: 'seo.site_url',
+    level: siteUrlIssue ? 'warn' : 'ok',
+    title: 'Canonical site URL',
+    detail: siteUrlIssue ?? `${SITE_URL} (https, production host)`,
+    value: SITE_URL,
     at,
   });
 

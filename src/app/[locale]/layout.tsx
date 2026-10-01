@@ -5,10 +5,8 @@ import { getDictionary } from '@/i18n/dictionaries';
 import { isLocale, localeDir, type Locale } from '@/i18n/locales';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { siteJsonLd } from '@/lib/seo';
+import { DEFAULT_OG_IMAGE, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, SITE_URL, siteJsonLd } from '@/lib/seo';
 import { PwaRegister } from '@/components/pwa-register';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 /** NOTE: no canonical/hreflang here on purpose — every page declares its own
  *  absolute, self-referencing canonical via src/lib/seo.ts. A layout-level
@@ -32,17 +30,31 @@ export async function generateMetadata({
       template: `%s | ${dict.site.name}`,
     },
     description: dict.site.description,
+    // Domain ownership proof for Search Console. The value comes from
+    // GOOGLE_SITE_VERIFICATION (env); undefined simply omits the tag.
+    verification: process.env.GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+      : undefined,
     openGraph: {
       type: 'website',
       siteName: 'KoraScore',
       title: `${dict.site.name} - ${dict.site.tagline}`,
       description: dict.site.description,
       locale: locale === 'ar' ? 'ar_EG' : 'en_GB',
+      images: [
+        {
+          url: DEFAULT_OG_IMAGE,
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
+          alt: `${dict.site.name} - ${dict.site.tagline}`,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${dict.site.name} - ${dict.site.tagline}`,
       description: dict.site.description,
+      images: [DEFAULT_OG_IMAGE],
     },
   };
 }

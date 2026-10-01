@@ -5,6 +5,7 @@ import { ALL_LEAGUES } from '@/lib/constants';
 import { entitiesByKind } from '@/lib/entities';
 import { getNewsBundle, newsEnabled } from '@/lib/news';
 import { hasHistory, historySeasons } from '@/lib/historical';
+import { getLiveMatches, getMatchesByDate, localToday } from '@/lib/football';
 import { cache } from '@/lib/cache';
 import type { UnifiedMatch } from '@/lib/types';
 
@@ -98,13 +99,24 @@ function leagueLastmod(code: string): string | undefined {
   return undefined;
 }
 
-/** Matches this instance actually holds — real ids that really render. */
-function sitemapMatches(): UrlEntry[] {
+/**
+ * Matches this instance can really serve — real ids that render a 200 page.
+ *
+ * Two sources, in order:
+ *   1. the in-memory cache (free: already fetched by real traffic today);
+ *   2. if it is empty (cold serverless instance, or a crawl that arrives
+ *      before any user) the live/yesterday/today/tomorrow buckets are fetched
+ *      from the providers directly. A sitemap built only from cache would be
+ *      EMPTY on a cold instance, which tells Google there are no matches at
+ *      all — worse than spending one upstream request.
+ * Failures are swallowed: an empty `matches` sitemap is a valid sitemap, a
+ * 500 is not.
+ */
+async function sitemapMatches(): Promise<UrlEntry[]> {
   const seen = new Map<string, UrlEntry>();
-  for (const key of cache.keysWithPrefix('matches:')) {
-    const hit = cache.get<UnifiedMatch[]>(key);
-    if (!hit) continue;
-    for (const match of hit.value.slice(0, 60)) {
+
+  const collect = (matches: UnifiedMatch[], perBucket = 60) => {
+    for (const match of matches.slice(0, perBucket)) {
       if (seen.has(match.id)) continue;
       seen.set(match.id, {
         path: `/matches/${match.id}`,
@@ -113,7 +125,29 @@ function sitemapMatches(): UrlEntry[] {
         priority: 0.6,
       });
     }
+  };
+
+  for (const key of cache.keysWithPrefix('matches:')) {
+    const hit = cache.get<UnifiedMatch[]>(key);
+    if (hit) collect(hit.value);
   }
+
+  if (seen.size === 0) {
+    const today = localToday();
+    const day = (offset: number) => {
+      const value = new Date(`${today}T00:00:00Z`);
+      value.setUTCDate(value.getUTCDate() + offset);
+      return value.toISOString().slice(0, 10);
+    };
+    const results = await Promise.allSettled([
+      getLiveMatches(),
+      getMatchesByDate(day(-1)),
+      getMatchesByDate(today),
+      getMatchesByDate(day(1)),
+    ]);
+    for (const result of results) if (result.status === 'fulfilled') collect(result.value.data);
+  }
+
   return [...seen.values()].slice(0, 400);
 }
 
@@ -145,7 +179,7 @@ async function buildEntries(type: string): Promise<UrlEntry[] | null> {
         .slice(0, 5000);
     }
     case 'matches':
-      return sitemapMatches();
+      return await sitemapMatches();
     case 'news': {
       if (!newsEnabled()) return [];
       const entries: UrlEntry[] = [];

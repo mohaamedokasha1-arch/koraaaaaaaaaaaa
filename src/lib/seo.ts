@@ -14,6 +14,38 @@ import { locales, type Locale } from '@/i18n/locales';
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
 
+/**
+ * Default share image (1200×630, static in /public).
+ *
+ * Why it must exist: a social/serp preview without an image is skipped, and a
+ * page whose `openGraph.images` is undefined emits no `og:image` at all. Pages
+ * can still pass their own (`image:`); this is the floor, not a ceiling.
+ */
+export const DEFAULT_OG_IMAGE = '/og-default.png';
+export const OG_IMAGE_WIDTH = 1200;
+export const OG_IMAGE_HEIGHT = 630;
+
+/**
+ * True when the site URL still points at localhost or is not https while
+ * running on a real deployment — the single most common cause of canonical
+ * URLs that point somewhere other than the live domain. Pure (no side
+ * effects), so it can be asserted in tests and printed by scripts/seo-check.
+ */
+export function siteUrlProblem(env: NodeJS.ProcessEnv = process.env): string | null {
+  const raw = env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return 'NEXT_PUBLIC_SITE_URL is not set — canonical/hreflang/sitemap fall back to http://localhost:3000.';
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:') return `NEXT_PUBLIC_SITE_URL is not https (${raw}).`;
+    if (/localhost|127\.0\.0\.1|\.vercel\.app$/i.test(url.hostname)) {
+      return `NEXT_PUBLIC_SITE_URL still points at a non-production host (${url.hostname}). Set the final domain on Vercel → Settings → Environment Variables (Production) and redeploy.`;
+    }
+    return null;
+  } catch {
+    return `NEXT_PUBLIC_SITE_URL is not a valid absolute URL (${raw}).`;
+  }
+}
+
 /** Path without locale prefix, always starting with '/' and without trailing slash. */
 export function localePath(locale: Locale, path = '/'): string {
   if (!path || path === '/') return `/${locale}`;
@@ -58,7 +90,14 @@ export function pageMetadata({
   image,
 }: PageMetadataInput): Metadata {
   const canonical = absoluteUrl(localePath(locale, path));
-  const ogImage = image ? { url: image, alt: title } : undefined;
+  // Every page gets an og:image: the page's own when it has one (team crest,
+  // league emblem), the shared 1200×630 card otherwise.
+  const ogImage = {
+    url: image ?? DEFAULT_OG_IMAGE,
+    width: OG_IMAGE_WIDTH,
+    height: OG_IMAGE_HEIGHT,
+    alt: title,
+  };
 
   return {
     title,
@@ -77,13 +116,13 @@ export function pageMetadata({
       url: canonical,
       siteName: 'KoraScore',
       locale: locale === 'ar' ? 'ar_EG' : 'en_GB',
-      images: ogImage ? [ogImage] : undefined,
+      images: [ogImage],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ogImage ? [ogImage.url] : undefined,
+      images: [ogImage.url],
     },
   };
 }

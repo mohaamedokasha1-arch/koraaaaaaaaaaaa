@@ -12,7 +12,7 @@ import { TeamLogo } from '@/components/team-logo';
 import { ErrorState, StaleNotice } from '@/components/empty-state';
 import { formatFullDate, minuteLabel, num } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
-import { breadcrumbJsonLd, clip, pageMetadata } from '@/lib/seo';
+import { absoluteUrl, breadcrumbJsonLd, clip, localePath, pageMetadata } from '@/lib/seo';
 import { getUserTimeZone } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
@@ -194,7 +194,7 @@ export default async function MatchPage({
     startDate: m.utcDate,
     eventStatus,
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-    url: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/${locale}/matches/${m.id}`,
+    url: absoluteUrl(localePath(locale, `/matches/${m.id}`)),
     homeTeam: { '@type': 'SportsTeam', name: m.home.name, logo: m.home.crest ?? undefined },
     awayTeam: { '@type': 'SportsTeam', name: m.away.name, logo: m.away.crest ?? undefined },
     competitor: [

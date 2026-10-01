@@ -33,10 +33,17 @@ export function LiveMatches({
   initial,
   locale,
   dict,
+  headingLevel = 'h2',
 }: {
   initial: LiveResponse | null;
   locale: Locale;
   dict: Dictionary;
+  /**
+   * 'h1' on the dedicated /live page (it is the page's own heading), 'h2'
+   * everywhere it is embedded under another page's heading. One <h1> per page,
+   * and it must exist in the server HTML.
+   */
+  headingLevel?: 'h1' | 'h2';
 }) {
   const { data, mutate, isValidating } = useSWR<LiveResponse>('/api/matches/live', fetcher, {
     fallbackData: initial ?? undefined,
@@ -55,11 +62,12 @@ export function LiveMatches({
   const matches = data?.matches ?? initial?.matches ?? [];
   const fetchedAt = data?.fetchedAt ?? initial?.fetchedAt;
   const stale = (data?.stale ?? initial?.stale) || false;
+  const Heading = headingLevel;
 
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h2 className="section-title flex items-center gap-2">
+        <Heading className="section-title flex items-center gap-2">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
@@ -68,7 +76,7 @@ export function LiveMatches({
           <span className="rounded-md bg-navy-700/80 px-2 py-0.5 text-xs font-bold text-slate-200 tabular-nums ring-1 ring-inset ring-navy-600/60">
             {matches.length}
           </span>
-        </h2>
+        </Heading>
         <div className="ms-auto flex items-center gap-2 text-xs text-slate-500">
           {fetchedAt && (
             <span>
