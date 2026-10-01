@@ -74,7 +74,7 @@ export default async function TopScorersPage({
           <EmptyState title={dict.common.noData} body={dict.common.dataUnavailable} />
         )}
         {result && result.data.length > 0 && (
-          <ScorersTable scorers={result.data} locale={locale} dict={dict} />
+          <ScorersTable scorers={result.data} locale={locale} dict={dict} leagueCode={code} />
         )}
       </div>
     </div>

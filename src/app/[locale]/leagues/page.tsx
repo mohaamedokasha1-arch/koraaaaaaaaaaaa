@@ -6,6 +6,8 @@ import { pageMetadata } from '@/lib/seo';
 import { getLeagues } from '@/lib/football';
 import { ALL_LEAGUES, isFdCovered } from '@/lib/constants';
 import { TeamLogo } from '@/components/team-logo';
+import { FavoriteButton } from '@/features/personalization/components/FavoriteButton';
+import { favoriteForLeague } from '@/features/personalization/lib/catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,16 +60,14 @@ export default async function LeaguesPage({ params }: { params: Promise<{ locale
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {featured.map((f) => {
           const live = byCode.get(f.fdCode);
+          const favorite = favoriteForLeague(f.fdCode);
           return (
-            <Link
-              key={f.fdCode}
-              href={`/${locale}/leagues/${f.fdCode}`}
-              className="card card-hover group flex items-center gap-4 px-5 py-4"
-            >
+            <article key={f.fdCode} className="card card-hover group flex items-center gap-3 px-5 py-4">
+            <Link href={`/${locale}/leagues/${f.fdCode}`} className="flex min-w-0 flex-1 items-center gap-4">
               <span className="crest-tile h-14 w-14 transition-colors group-hover:ring-navy-500">
                 <TeamLogo src={live?.emblem ?? f.emblem} alt={f.nameEn} size={40} />
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-bold text-white">
                   {locale === 'ar' ? f.nameAr : (live?.name ?? f.nameEn)}
                 </p>
@@ -84,6 +84,8 @@ export default async function LeaguesPage({ params }: { params: Promise<{ locale
                 </svg>
               </span>
             </Link>
+            {favorite && <FavoriteButton favorite={favorite} locale={locale} />}
+            </article>
           );
         })}
       </div>

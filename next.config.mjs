@@ -75,6 +75,8 @@ const nextConfig = {
         source: '/api/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
       },
+      { source: '/:locale/matches/:id/share-image', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
+      { source: '/:locale/profile', headers: [{ key: 'Cache-Control', value: 'private, no-store' }, { key: 'X-Robots-Tag', value: 'noindex, follow' }] },
       { source: '/:locale/watch/:path*', headers: [{ key: 'Content-Security-Policy', value: liveCsp }] },
       { source: '/live/:path*.json', headers: [{ key: 'Cache-Control', value: 'public, max-age=30, s-maxage=60, stale-while-revalidate=60' }] },
     ];

@@ -13,6 +13,7 @@ import { pageMetadata } from '@/lib/seo';
 import { getNews, newsEnabled, newsSources } from '@/lib/news';
 import { NewsList, NewsAttribution } from '@/components/news-list';
 import { getUserTimeZone } from '@/lib/time';
+import { HomeGate } from '@/features/personalization/components/HomeGate';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +66,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
   return (
     <div className="container-page py-6 sm:py-8 space-y-10">
       <AutoRefresh intervalMs={300_000} />
+      {/* Optional local surface: no interests means no dashboard/data request. */}
+      <HomeGate locale={locale} tz={tz} labels={{ common: { versus: dict.common.versus }, match: dict.match, news: { readAtSource: dict.news.readAtSource } }} />
       {/* Hero */}
       <section className="card relative overflow-hidden px-6 py-12 sm:px-10 sm:py-16 text-center">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 hero-glow" />

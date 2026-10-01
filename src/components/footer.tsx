@@ -23,6 +23,8 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
     { href: `/${locale}/today`, label: dict.nav.today },
     { href: `/${locale}/results`, label: dict.nav.results },
     { href: `/${locale}/upcoming`, label: dict.nav.upcoming },
+    { href: `/${locale}/profile`, label: locale === 'ar' ? 'مساحتي' : 'My space' },
+    { href: `/${locale}/privacy`, label: locale === 'ar' ? 'الخصوصية' : 'Privacy' },
     { href: `/${locale}/standings`, label: dict.nav.standings },
     { href: `/${locale}/top-scorers`, label: dict.nav.topScorers },
   ];
@@ -45,7 +47,7 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
           <ul className="space-y-2">
             {sections.map((s) => (
               <li key={s.href}>
-                <Link href={s.href} className="link-accent inline-flex items-center gap-2 text-sm">
+                <Link href={s.href} prefetch={s.href.endsWith('/profile') || s.href.endsWith('/privacy') ? false : undefined} className="link-accent inline-flex items-center gap-2 text-sm">
                   <span aria-hidden="true" className="h-1 w-1 rounded-full bg-navy-400" />
                   {s.label}
                 </Link>

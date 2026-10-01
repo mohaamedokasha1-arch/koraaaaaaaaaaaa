@@ -9,6 +9,8 @@ import { slugForTeam } from '@/lib/entities';
 import { TeamLogo } from '@/components/team-logo';
 import { LeagueSelect } from '@/components/league-select';
 import { EmptyState, ErrorState } from '@/components/empty-state';
+import { FavoriteButton } from '@/features/personalization/components/FavoriteButton';
+import { favoriteForTeam } from '@/features/personalization/lib/catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,19 +72,21 @@ export default async function TeamsPage({
         )}
         {result && result.data.length > 0 && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {result.data.map((t) => (
-              <Link
-                key={t.id}
-                href={`/${locale}/teams/${slugForTeam({ id: t.id, name: t.name }, undefined, code)}`}
-                className="card card-hover group flex flex-col items-center gap-3 px-4 py-5 text-center"
-              >
-                <span className="crest-tile h-14 w-14 transition-colors group-hover:ring-navy-500">
-                  <TeamLogo src={t.crest} alt={t.name} size={38} />
-                </span>
-                <span className="text-sm font-semibold text-white leading-tight">{t.name}</span>
-                {t.country && <span className="text-[11px] uppercase tracking-wide text-slate-500">{t.country}</span>}
-              </Link>
-            ))}
+            {result.data.map((t) => {
+              const favorite = favoriteForTeam(t, code);
+              return (
+                <article key={t.id} className="card card-hover group">
+                  <Link href={`/${locale}/teams/${slugForTeam({ id: t.id, name: t.name }, undefined, code)}`} className="flex flex-col items-center gap-3 rounded-xl px-4 py-5 text-center">
+                    <span className="crest-tile h-14 w-14 transition-colors group-hover:ring-navy-500">
+                      <TeamLogo src={t.crest} alt={t.name} size={38} />
+                    </span>
+                    <span className="text-sm font-semibold text-white leading-tight">{t.name}</span>
+                    {t.country && <span className="text-[11px] uppercase tracking-wide text-slate-500">{t.country}</span>}
+                  </Link>
+                  {favorite && <div className="absolute end-2 top-2"><FavoriteButton favorite={favorite} locale={locale} /></div>}
+                </article>
+              );
+            })}
           </div>
         )}
       </div>
