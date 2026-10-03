@@ -2,6 +2,8 @@ import type { MatchStatus, UnifiedMatch } from '@/lib/types';
 import { encodeEntityId, featuredByEspnSlug, FEATURED_LEAGUES } from '@/lib/constants';
 import type { FootballProvider } from './base';
 import { fetchJson, ProviderError } from './http';
+import { mapTournamentStandings } from '@/lib/pure/tournament';
+import type { EspnStandingsResponse, TournamentStandingRow } from '@/lib/pure/tournament';
 
 /**
  * ESPN public scoreboard — no key required. Used as the live-scores and
@@ -44,6 +46,8 @@ interface EspnEvent {
     venue?: { fullName?: string };
     competitors?: EspnCompetitor[];
     details?: EspnDetail[];
+    /** present on cup/tournament group-stage matches only, e.g. {name: "Group A"} */
+    group?: { name?: string };
   }[];
   league?: { id?: string; name?: string; abbreviation?: string; slug?: string };
 }
@@ -233,3 +237,51 @@ export const espnProvider: FootballProvider = {
   async getTeamMatches() { throw new ProviderError('not supported', 'unsupported'); },
   async searchTeams() { throw new ProviderError('not supported', 'unsupported'); },
 };
+
+// ----------------------------------------------------------- tournaments ----
+// Cup/tournament support (World Cup, AFCON, ...): not part of the live
+// waterfall above (no other free source covers group+knockout schema), used
+// only by the dedicated tournament hub via src/lib/tournaments.ts.
+
+export interface TournamentMatch extends UnifiedMatch {
+  /** ESPN's own round slug, e.g. "group-stage", "semifinals" — verified live. */
+  roundSlug: string | null;
+  /** Group name when this match belongs to a group stage, e.g. "Group A". */
+  groupName: string | null;
+}
+
+/**
+ * The entire tournament schedule in ONE request — verified live against
+ * `/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={year}&limit=300` for
+ * both the 2026 FIFA World Cup and the 2025 Africa Cup of Nations.
+ */
+export async function fetchTournamentSchedule(slug: string, year: number): Promise<TournamentMatch[]> {
+  const data = await fetchJson<{ events?: EspnEvent[] }>(
+    `${BASE}/${slug}/scoreboard?dates=${year}&limit=300`,
+  );
+  const out: TournamentMatch[] = [];
+  for (const e of data.events ?? []) {
+    const m = mapEvent(e, slug, false);
+    if (!m) continue;
+    out.push({
+      ...m,
+      roundSlug: e.season?.slug ?? null,
+      groupName: e.competitions?.[0]?.group?.name ?? null,
+    });
+  }
+  return out;
+}
+
+const STANDINGS_BASE = 'https://site.api.espn.com/apis/v2/sports/soccer';
+
+/**
+ * Group-stage standings — verified live against
+ * `/apis/v2/sports/soccer/{slug}/standings?season={year}` for both the 2026
+ * FIFA World Cup and the 2025 Africa Cup of Nations. Returns `[]` for
+ * straight-knockout tournaments or seasons with no groups yet (never thrown
+ * as an error — an empty group stage is a valid, real answer).
+ */
+export async function fetchTournamentStandings(slug: string, year: number): Promise<TournamentStandingRow[]> {
+  const data = await fetchJson<EspnStandingsResponse>(`${STANDINGS_BASE}/${slug}/standings?season=${year}`);
+  return mapTournamentStandings(data, (teamId) => encodeEntityId('espn', teamId));
+}

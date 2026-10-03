@@ -81,6 +81,8 @@ export interface StandingRow {
   form: string | null;
   zone: 'champions' | 'europe' | 'relegation' | null;
   group: string | null;
+  /** Short qualification/elimination note (cup group stages only), e.g. "Qualifies for round of 16". */
+  note?: string | null;
 }
 
 export interface Scorer {

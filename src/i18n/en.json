@@ -15,7 +15,8 @@
     "topScorers": "Top Scorers",
     "teams": "Teams",
     "search": "Search",
-    "news": "News"
+    "news": "News",
+    "tournaments": "Tournaments"
   },
   "common": {
     "loading": "Loading…",
@@ -173,6 +174,26 @@
     "seasonLabel": "Season",
     "historyUnavailable": "No historical season data is available for this competition."
   },
+  "tournaments": {
+    "title": "International Tournaments",
+    "indexDesc": "The World Cup and continental championships: groups, standings, and the full schedule through to the final.",
+    "groupsTab": "Groups",
+    "scheduleTab": "Schedule",
+    "group": "Group",
+    "noGroups": "No groups for this tournament.",
+    "noMatches": "No matches available yet.",
+    "dataNote": "Group and match data from ESPN's public, keyless API — no estimated or fabricated data.",
+    "seeAll": "See all tournaments",
+    "rounds": {
+      "group-stage": "Group Stage",
+      "round-of-32": "Round of 32",
+      "round-of-16": "Round of 16",
+      "quarterfinals": "Quarterfinals",
+      "semifinals": "Semifinals",
+      "third-place": "Third-Place Match",
+      "final": "Final"
+    }
+  },
   "search": {
     "placeholder": "Search teams or leagues…",
     "title": "Search",
@@ -221,6 +242,10 @@
     "newsDesc": "The latest football headlines from reputable publishers — headline, short excerpt and a clear credit to the original source.",
     "leagueTitle": "{name} - Standings, Results & Fixtures",
     "leagueDesc": "Everything about {name}: league table, fixtures, results, top scorers and teams, plus historical seasons.",
+    "tournamentsTitle": "International Tournaments - World Cup & Continental Championships",
+    "tournamentsDesc": "Follow the World Cup and continental championships: groups, standings, and the full schedule through to the final.",
+    "tournamentTitle": "{name} - Groups, Standings & Schedule",
+    "tournamentDesc": "Everything about {name}: group standings and the full match schedule through to the final.",
     "teamTitle": "{name} - Fixtures, Squad & Standings",
     "teamDesc": "{name}: recent results, upcoming fixtures, current squad and league position.",
     "matchTitle": "{home} vs {away} - Score & Events",

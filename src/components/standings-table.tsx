@@ -69,7 +69,10 @@ export function StandingsTable({
                       className="flex items-center gap-2.5 hover:text-white"
                     >
                       <TeamLogo src={r.team.crest} alt={r.team.name} size={22} />
-                      <span className="font-medium text-slate-100">{r.team.name}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-slate-100">{r.team.name}</span>
+                        {r.note && <span className="block truncate text-[11px] text-slate-500">{r.note}</span>}
+                      </span>
                     </Link>
                   </td>
                   <td className="px-2 py-2.5 text-center text-slate-300 tabular-nums">{num(r.played, locale)}</td>
