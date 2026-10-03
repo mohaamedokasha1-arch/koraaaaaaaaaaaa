@@ -10,6 +10,7 @@ import { hasHistory } from '@/lib/historical';
 import { leagueByCode } from '@/lib/constants';
 import { getNewsBundle, newsEnabled } from '@/lib/news';
 import { TeamLogo } from '@/components/team-logo';
+import { playerEntityId } from '@/lib/players';
 import { MatchList } from '@/components/match-list';
 import { StandingsTable } from '@/components/standings-table';
 import { NewsList } from '@/components/news-list';
@@ -377,7 +378,15 @@ export default async function TeamPage({
                           <td className="px-4 py-2.5 text-center font-bold text-slate-300 tabular-nums">
                             {p.shirtNumber != null ? num(p.shirtNumber, locale) : '–'}
                           </td>
-                          <td className="px-4 py-2.5 font-medium text-slate-100">{p.name}</td>
+                          <td className="px-4 py-2.5 font-medium text-slate-100">
+                            {p.id ? (
+                              <Link href={`/${locale}/players/${playerEntityId(p.name, team.id, p.id)}`} className="hover:text-white hover:underline">
+                                {p.name}
+                              </Link>
+                            ) : (
+                              p.name
+                            )}
+                          </td>
                           <td className="hidden sm:table-cell px-4 py-2.5 text-slate-400">{p.position ?? '–'}</td>
                           <td className="hidden md:table-cell px-4 py-2.5 text-slate-400">{p.nationality ?? '–'}</td>
                         </tr>

@@ -6,6 +6,7 @@ import { pageMetadata } from '@/lib/seo';
 import { getLeagues } from '@/lib/football';
 import { ALL_LEAGUES, isFdCovered } from '@/lib/constants';
 import { TeamLogo } from '@/components/team-logo';
+import { TOURNAMENTS } from '@/lib/tournaments';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,6 +87,32 @@ export default async function LeaguesPage({ params }: { params: Promise<{ locale
             </Link>
           );
         })}
+      </div>
+
+      <div className="mt-10 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-white">{dict.tournaments.title}</h2>
+        <Link href={`/${locale}/tournaments`} className="text-xs font-medium text-slate-400 hover:text-white">
+          {dict.tournaments.seeAll}
+        </Link>
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {TOURNAMENTS.map((t) => (
+          <Link
+            key={t.slug}
+            href={`/${locale}/tournaments/${t.slug}`}
+            className="card card-hover group flex items-center gap-4 px-5 py-4"
+          >
+            <span className="crest-tile h-14 w-14 transition-colors group-hover:ring-navy-500">
+              <TeamLogo src={t.logo} alt={locale === 'ar' ? t.nameAr : t.nameEn} size={40} />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-white">{locale === 'ar' ? t.nameAr : t.nameEn}</p>
+              <p className="mt-0.5 text-[11px] uppercase tracking-wide text-slate-500">
+                {locale === 'ar' ? t.countryAr : t.countryEn}
+              </p>
+            </div>
+          </Link>
+        ))}
       </div>
     </div>
   );
