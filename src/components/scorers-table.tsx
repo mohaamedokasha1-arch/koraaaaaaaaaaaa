@@ -4,6 +4,7 @@ import type { Locale } from '@/i18n/locales';
 import type { Scorer } from '@/lib/types';
 import { TeamLogo } from './team-logo';
 import { num } from '@/lib/format';
+import { playerEntityId } from '@/lib/players';
 
 export function ScorersTable({
   scorers,
@@ -47,7 +48,15 @@ export function ScorersTable({
                     {num(s.rank, locale)}
                   </span>
                 </td>
-                <td className="px-3 py-2.5 font-medium text-slate-100">{s.name}</td>
+                <td className="px-3 py-2.5 font-medium text-slate-100">
+                  {s.playerId ? (
+                    <Link href={`/${locale}/players/${playerEntityId(s.name, s.team.id, s.playerId)}`} className="hover:text-white hover:underline">
+                      {s.name}
+                    </Link>
+                  ) : (
+                    s.name
+                  )}
+                </td>
                 <td className="px-3 py-2.5">
                   <Link href={`/${locale}/teams/${s.team.id}`} className="flex items-center gap-2 hover:text-white">
                     <TeamLogo src={s.team.crest} alt={s.team.name} size={20} />
