@@ -106,6 +106,49 @@ export const EXTRA_LEAGUES: FeaturedLeague[] = [
     countryAr: 'مصر',
     emblem: 'https://r2.thesportsdb.com/images/media/league/badge/v0iz601786057987.png',
   },
+  {
+    // Saudi Pro League (دوري روشن السعودي) — TheSportsDB league 4668,
+    // api-football league 307. Verified live 2026-27 table (matchday 7, Al-Hilal
+    // top) via a real request on 2026-10-03. Not on football-data's free plan.
+    fdCode: 'KSA',
+    tsdbId: '4668',
+    espnSlug: '',
+    afLeagueId: '307',
+    tsdbName: 'Saudi-Arabian Pro League',
+    nameEn: 'Saudi Pro League',
+    nameAr: 'الدوري السعودي للمحترفين',
+    country: 'Saudi Arabia',
+    countryAr: 'السعودية',
+    emblem: 'https://r2.thesportsdb.com/images/media/league/badge/3oov8g1746325357.png',
+  },
+  {
+    // UAE Pro League (دوري المحترفين الإماراتي) — TheSportsDB league 4678,
+    // api-football league 301. Verified live via a real request on 2026-10-03.
+    fdCode: 'UAE',
+    tsdbId: '4678',
+    espnSlug: '',
+    afLeagueId: '301',
+    tsdbName: 'UAE Pro League',
+    nameEn: 'UAE Pro League',
+    nameAr: 'دوري المحترفين الإماراتي',
+    country: 'United Arab Emirates',
+    countryAr: 'الإمارات',
+    emblem: 'https://r2.thesportsdb.com/images/media/league/badge/95pes01643234997.png',
+  },
+  {
+    // Qatar Stars League (دوري نجوم قطر) — TheSportsDB league 4663,
+    // api-football league 305. Verified live via a real request on 2026-10-03.
+    fdCode: 'QAT',
+    tsdbId: '4663',
+    espnSlug: '',
+    afLeagueId: '305',
+    tsdbName: 'Qatar Stars League',
+    nameEn: 'Qatar Stars League',
+    nameAr: 'دوري نجوم قطر',
+    country: 'Qatar',
+    countryAr: 'قطر',
+    emblem: 'https://r2.thesportsdb.com/images/media/league/badge/hekdan1784606842.png',
+  },
 ];
 
 /** Every league the UI may navigate to (featured + provider-native extras). */
